@@ -391,6 +391,18 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-013: Exit button in dialog does not close app
+| Field | Detail |
+|-------|--------|
+| **Date** | June 8, 2026 |
+| **Symptom** | Exit dialog appears correctly on back press. Clicking "Exit" dismisses the dialog but app stays open, no change. |
+| **Root Cause** | Unknown — suspected `page.window.destroy()` either fails silently at Flet/Flutter level on this Android version, or the method attribute access fails. The try/except wrapper didn't catch it (no error printed) → suggests Flet accepted the call but Flutter didn't act on it. |
+| **Fix** | Pending — needs investigation. Possible approaches: (1) verify `page.window.destroy()` is correct property vs `page.window_destroy()` method in Flet 0.28.3; (2) test alternative close APIs like `page.window.close()` or `ft.app(close=True)`; (3) use `import sys; sys.exit(0)` if running as main process; (4) fallback: minimize to background instead of closing. |
+| **Files** | `main.py` (show_exit_dialog → handle_exit handler) |
+| **Note** | Priority: MEDIUM. The Cancel path works correctly. User can still exit via OS task switcher. This is not a white-screen or data-loss bug. |
+
+---
+
 ## 8. FEATURES STATUS
 
 ### ✅ Working
@@ -401,7 +413,7 @@ Exit: closes dialog → calls page.window.destroy()
 - APK Build via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
 - Navigation & Hardware Back Button (interceptor preserved, no view popping)
 - Session Restore for All Roles (admin, labour, customer)
-- Exit Confirmation Dialog (overlay API, cancel/exit)
+- Exit Confirmation Dialog — Cancel works, Exit closes dialog but does NOT close app (BUG-013)
 - Background Fetch Guard (render skips when dialog open)
 - Consistent APK Signing (cached debug keystore)
 
@@ -513,7 +525,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
-| June 8, 2026 | Project memory consolidation: merged 3 context files into PROJECT_MEMORY.md | PROJECT_MEMORY.md (new), contextD.md, PROJECT_CONTEXT.md, PROJECT_HANDOVER.md (retained for reference) | Complete |
+| June 8, 2026 | Exit button not closing app — logged as BUG-013. Moved 3 legacy context files to archive/. Tagged for tomorrow. | PROJECT_MEMORY.md | Pending — BUG-013 unresolved |
+| June 8, 2026 | Project memory consolidation: merged 3 context files into PROJECT_MEMORY.md | PROJECT_MEMORY.md (new), archive/PROJECT_CONTEXT.md, archive/PROJECT_HANDOVER.md, archive/contextD.md | Complete |
 | June 8, 2026 | Exit dialog guard: added render() skip-return when dialog open; removed on_dismiss; simplified cancel/exit flow | main.py | Complete — pushed, CI building |
 | June 8, 2026 | Keystore caching: added actions/cache for ~/.android/debug.keystore; bumped to v1.0.8 | .github/workflows/build_apk.yml | Complete — pushed, CI building |
 | June 8, 2026 | Exit dialog + white screen fix: removed view pop from handler; switched dialog to overlay API; defensive view guard | main.py | Complete — pushed, CI building |

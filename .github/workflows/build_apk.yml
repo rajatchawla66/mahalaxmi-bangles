@@ -42,13 +42,19 @@ jobs:
         run: |
           yes | flutter doctor --android-licenses || true
 
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-${{ runner.os }}
+
       - name: Build APK
         run: |
           flet build apk \
             --project "Mahalaxmi Bangles" \
             --product "Mahalaxmi Bangles" \
-            --build-number 3 \
-            --build-version "1.0.7" \
+            --build-number 4 \
+            --build-version "1.0.8" \
             --arch arm64-v8a \
             --skip-flutter-doctor
 
@@ -58,7 +64,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mahalaxmi-bangles-v1.0.7
+          name: mahalaxmi-bangles-v1.0.8
           path: |
             build/apk/**/*.apk
             **/*release*.apk

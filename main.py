@@ -978,8 +978,10 @@ async def main(page: ft.Page):
         else:
             body = ft.Text("Page not found")
 
-        # Modern Flet 0.28 View Routing
+        # Keep interceptor at index 0 so page.views always has >= 2 views
+        # This prevents Android from minimizing/closing the app on back press.
         page.views.clear()
+        page.views.append(ft.View(route="base_interceptor", controls=[ft.Container()]))
         view = ft.View(
             route="/",
             controls=[body] if body else [],

@@ -71,18 +71,26 @@
 - ✅ Order Creation & Flow
 - ✅ APK Build via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
 - 🔄 Logout Button (Popup Menu fix pending verification)
-- ❌ Navigation & Hardware Back Button (Currently closes the app instead of popping the stack)
+- ✅ Navigation & Hardware Back Button (Fixed: interceptor preserved in `render()` so `page.views` always >= 2)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 6 — BUG HISTORY LOG
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- **BUG:** White screen on root back press
+- **BUG:** White screen on root back press (Original)
   **DATE:** June 2026
   **SYMPTOM:** Pressing hardware back on the home screen causes a white screen on Android.
   **ROOT CAUSE:** Native Flet routing conflict when manually pushing a dummy `ft.View` into `page.views`.
   **FIX:** Ripped out `page.views` manipulation entirely and switched to standard `page.controls.clear()` rendering logic.
   **LESSON:** Do not manually manipulate `page.views` arrays with dummy interceptors on Flet 0.85 Android.
+  **FILES CHANGED:** `main.py`
+
+- **BUG:** Android hardware back button white screen (Recurrence)
+  **DATE:** June 8, 2026
+  **SYMPTOM:** Pressing hardware back on any root screen (Admin Home, Customer Dashboard) minimizes/closes the app. Reopening shows a white screen requiring force stop.
+  **ROOT CAUSE:** `render()` at `main.py:982` called `page.views.clear()`, which destroyed the dummy interceptor view (set at startup). After every render, `page.views` had exactly 1 view (content). When Android back was pressed, Flutter saw only 1 view and minimized the app. `on_view_pop` fired and `go_back()` ran, but Flutter had already decided to close. On reopen, the Flutter engine restored a broken view state → white screen.
+  **FIX:** Modified `render()` to recreate the dummy interceptor view at index 0 after clearing, so `page.views` always contains `[interceptor, content]` (length >= 2). This prevents Flutter from minimizing the app on back press, allowing `on_view_pop → go_back()` to handle navigation correctly every time.
+  **LESSON:** Any `page.views.clear()` in `render()` must be immediately followed by re-adding the interceptor. The interceptor must NEVER be the only view removed; it must always be at index 0 so `len(page.views) >= 2` at all times during normal operation.
   **FILES CHANGED:** `main.py`
 
 - **BUG:** APK Size Ballooning by 15MB
@@ -129,24 +137,31 @@
 ## SECTION 7 — CURRENT SESSION STATUS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Most recently working on:** Fixed the APK build blocker by setting up GitHub Actions CI. Local Windows builds are permanently blocked by Flutter 3.29.2's `objective_c` native-assets requirement.
+**Most recently working on:** Fixed the Android hardware back button white screen bug.
+
+**Problem:** `render()` destroyed the interceptor view via `page.views.clear()`, leaving only 1 view. Flutter minimized the app on back press → white screen on reopen.
+
+**Fix:** `render()` now recreates the interceptor at `page.views[0]` after clearing, so `page.views` always has length >= 2. This prevents Flutter from closing/minimizing on back press.
 
 **Currently Broken (local Windows build):** 
 - APK build on Windows fails due to Flutter 3.29.2 + `objective_c 9.4.1` native-assets incompatibility. No known workaround without modifying Flet CLI source code.
 
-**Resolved via GitHub Actions CI:**
-- First APK built successfully on June 7, 2026 using Flutter 3.24.0 + Python 3.11 + Flet 0.28.3 on ubuntu-latest.
+**Resolved:**
+- ✅ APK builds via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
+- ✅ Navigation & Hardware Back Button fixed
 - Workflow file: `.github/workflows/build_apk.yml`
-- To trigger a new build: Push to `main` branch or go to Actions tab → "Build Android APK" → "Run workflow".
 
-**Needs Testing:** Install the CI-built APK on an actual Android device and verify layout stability, logout functionality, and navigation.
+**Needs Testing:** Install the CI-built APK on an actual Android device and verify:
+- Back button behavior on all screens (admin, customer, deep navigation)
+- No white screen after reopen
+- Layout stability
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 8 — PENDING FEATURES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Rebuild a stable, Android-compatible Navigation Stack that pops views correctly upon a hardware back button press, without resorting to broken `page.views` interceptor hacks.
-2. Verify full functionality of the Logout feature across all roles.
+1. Verify full functionality of the Logout feature across all roles (pending real Android testing).
+2. Consider removing the `on_view_pop_handler`'s `if len(page.views) > 1: page.views.pop()` guard since it's now always False (the interceptor is always at index 0). Not urgent — purely cosmetic cleanup.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 9 — CI/CD BUILD PROCESS

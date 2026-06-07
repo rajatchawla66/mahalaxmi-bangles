@@ -5,6 +5,7 @@ import urllib.parse
 import shutil
 from pathlib import Path
 import cache
+import session_helper
 from utils import *
 
 def view_login(page: ft.Page):
@@ -23,6 +24,7 @@ def view_login(page: ft.Page):
             else:
                 state["username"] = role
                 state["current_page"] = "home"
+                session_helper.save_session(state)
             go(state["current_page"])
         return _h
 

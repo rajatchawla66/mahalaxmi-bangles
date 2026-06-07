@@ -32,6 +32,7 @@ import db
 from utils import *
 import auth
 import cache
+import session_helper
 
 try:
     import card_generator
@@ -483,19 +484,22 @@ async def main(page: ft.Page):
     }
 
     # --- Persisted Session Check ---
-    import json
-    import os
-    session_file = os.path.join(os.environ.get("FLET_APP_STORAGE_DATA", "."), "customer_session.json")
-    try:
-        with open(session_file, "r") as f:
-            data = json.load(f)
-        if data.get("role") == "customer" and data.get("name"):
+    session_data = session_helper.load_session()
+    if session_data:
+        role = session_data.get("role")
+        if role == "admin":
+            state["role"] = "admin"
+            state["username"] = session_data.get("username", "Admin")
+            state["current_page"] = "home"
+        elif role == "labour":
+            state["role"] = "labour"
+            state["username"] = session_data.get("username", "Labour")
+            state["current_page"] = "home"
+        elif role == "customer" or (role is None and session_data.get("name")):
             state["role"] = "customer"
-            state["username"] = data.get("name")
-            state["customer_mobile"] = data.get("mobile")
+            state["username"] = session_data.get("name") or session_data.get("username", "")
+            state["customer_mobile"] = session_data.get("mobile", "")
             state["current_page"] = "customer_dashboard"
-    except Exception:
-        pass
 
     # Back navigation map: where each page should go back to
     BACK_MAP = {
@@ -585,32 +589,51 @@ async def main(page: ft.Page):
         except Exception as ex:
             snack(f"Navigation error: {ex}", ft.Colors.RED_400)
 
+    def show_exit_dialog():
+        if page.dialog and page.dialog.open:
+            return
+        def handle_cancel(e):
+            dlg.open = False
+            page.update()
+        def handle_exit(e):
+            dlg.open = False
+            page.update()
+            try:
+                page.window.destroy()
+            except Exception as ex:
+                print(f"ERROR: page.window.destroy() failed: {ex}")
+        dlg = ft.AlertDialog(
+            title=ft.Text("Exit App?"),
+            content=ft.Text("Are you sure you want to exit?"),
+            actions=[
+                ft.TextButton("Cancel", on_click=handle_cancel),
+                ft.TextButton("Exit", on_click=handle_exit),
+            ],
+        )
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
     def go_back():
-        """Navigate back through history or go to login at root."""
         try:
             current = state["current_page"]
-            
-            # If there is history, pop it
+
             if state["nav_history"]:
                 prev = state["nav_history"].pop()
                 state["current_page"] = prev
                 render()
                 return
 
-            # No history - check if we are at root
             root_pages = ["login", "home", "customer_dashboard"]
             if current in root_pages:
-                if current == "login":
-                    return
-                logout()
+                show_exit_dialog()
                 return
-                
-            # Fallback to BACK_MAP if not at root but no history
+
             if current in BACK_MAP and BACK_MAP[current]:
                 state["current_page"] = BACK_MAP[current]
                 render()
             else:
-                logout()
+                show_exit_dialog()
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
@@ -619,18 +642,12 @@ async def main(page: ft.Page):
 
     def logout(_=None):
         print("logout called")
-        import os
-        session_file = os.path.join(os.environ.get("FLET_APP_STORAGE_DATA", "."), "customer_session.json")
-        try:
-            if os.path.exists(session_file):
-                os.remove(session_file)
-        except Exception:
-            pass
+        session_helper.clear_session()
         state["role"] = None
         state["username"] = None
         state["cart"] = []
         state["selected_category"] = None
-        state["nav_history"] = [] # Clear history on logout
+        state["nav_history"] = []
         state["current_page"] = "login"
         render()
 

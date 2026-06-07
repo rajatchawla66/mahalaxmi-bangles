@@ -7,12 +7,14 @@
 **App Name:** Mahalaxmi Bangles  
 **Business Context:** Wholesale Bridal Chuda & Bangles Order Management  
 **Tech Stack:** Python, Flet (GUI), Supabase REST API (via `httpx`), SQLite (Offline caching)  
-**Build Command:** `flet build apk` (configured via `pyproject.toml`)  
-**Flet Version:** 0.85.2  
+**Build Command:** `flet build apk` (via GitHub Actions CI - see Section 9)  
+**Flet Version:** 0.28.3  
+**CI/CD:** GitHub Actions workflow at `.github/workflows/build_apk.yml`  
 **Known Version-Specific Rules:** 
-- Flet 0.85.2 does not support `page.client_storage` on Android; must use file-based JSON caching (`customer_session.json`).
+- Flet 0.28.3 does not support `page.client_storage` on Android; must use file-based JSON caching (`customer_session.json`).
 - `page.window_destroy()` is unstable/unsupported on Android.
 - Avoid manual `page.views` dummy interceptor manipulation on Android as it causes white screens. Rely on `page.controls` replacement for single-page routing where possible.
+- APK building on Windows is broken due to Flutter 3.29.2's `objective_c` native-assets requirement. Build via GitHub Actions CI instead.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 2 — FILE STRUCTURE
@@ -30,6 +32,7 @@
 - `views/customer.py`: Customer dashboard, category grid, and item catalogue for end-users.
 - `views/auth.py`: Simple mock login and role-selection screen.
 - `pyproject.toml`: **[DO NOT TOUCH CASUALLY]** Build configuration, explicitly excludes dynamically generated folders (e.g., `product_images`) from APK compilation.
+- `.github/workflows/build_apk.yml`: **[DO NOT TOUCH CASUALLY]** GitHub Actions workflow for automated APK builds. Uses Flutter 3.24.0 on ubuntu-latest to avoid the native-assets build bug.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 3 — DATABASE SCHEMA
@@ -55,6 +58,8 @@
 - **Navigation Patterns:** Currently using a single-view `page.controls` replacement approach. Wait for explicit instructions before trying to reinvent or intercept the Android hardware back button stack behavior.
 - **State Management Patterns:** All global state must be kept inside `page.state` dictionary. State resets should occur explicitly in the `logout()` function.
 - **Known Incompatibilities:** Do NOT use `flet_build.yaml` for APK configuration; use the `[tool.flet.app]` block inside `pyproject.toml` instead.
+- **APK Build (Windows):** Broken on local Windows due to Flutter 3.29.2 `objective_c` native-assets bug. Always build via GitHub Actions CI.
+- **GitHub Actions Workflow:** The workflow at `.github/workflows/build_apk.yml` pins Flutter 3.24.0 to avoid the native-assets bug. Do not change Flutter version without testing.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 5 — FEATURES STATUS
@@ -64,6 +69,7 @@
 - ✅ Admin Settings & Category Management
 - ✅ Sync & Offline Capabilities
 - ✅ Order Creation & Flow
+- ✅ APK Build via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
 - 🔄 Logout Button (Popup Menu fix pending verification)
 - ❌ Navigation & Hardware Back Button (Currently closes the app instead of popping the stack)
 
@@ -111,21 +117,29 @@
   **LESSON:** Avoid `ResponsiveRow` and `expand=True` inside `ft.Row` in Flet 0.28.3 to prevent grid indexing crashes.
   **FILES CHANGED:** `views/pricing.py`, `views/settings.py`, `views/orders.py`
 
+- **BUG:** APK build fails with `objective_c` native-assets error
+  **DATE:** June 7, 2026
+  **SYMPTOM:** `flet build apk` fails during "Packaging Python app" stage with: `Package(s) objective_c require the native assets feature to be enabled.`
+  **ROOT CAUSE:** Flet 0.28.3 hardcodes Flutter 3.29.2 which ships Dart 3.10+. The `serious_python` transitive dependency `objective_c 9.4.1` requires `--enable-experiment=native-assets`, but Flet CLI's `dart run serious_python:main` command doesn't include this flag. `DART_VM_OPTIONS` env var and `--flutter-build-args` do not apply at the packaging step.
+  **FIX:** Moved APK builds to GitHub Actions CI using `subosito/flutter-action@v2` with Flutter 3.24.0 (pre-native-assets era). Also tried `--template-ref 0.27.0` as a local workaround (packaging succeeds but Gradle fails with `webview_flutter_android` Dart version mismatch).
+  **LESSON:** Flet 0.28.3 APK builds are broken on any system that auto-downloads Flutter 3.29.2. Always pin an older Flutter version via CI. Local Windows builds are not viable for this project.
+  **FILES CHANGED:** `.github/workflows/build_apk.yml`, `.gitignore`, `PROJECT_CONTEXT.md`
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 7 — CURRENT SESSION STATUS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Most recently working on:** Fixed the persistent `RangeError` by migrating away from unstable `ResponsiveRow` and `expand=True` layouts in the Pricing/Costing views.
-**Currently Broken:** 
-- **APK Build Blocker:** `flet build apk` fails during the "Packaging Python app" stage with: `Package(s) objective_c require the native assets feature to be enabled. Enable native assets with --enable-experiment=native-assets`.
-- **Solutions Tried:**
-  1. `--flutter-build-args="--enable-experiment=native-assets"` (failed; error occurs in pre-build packaging).
-  2. `$env:DART_VM_OPTIONS="--enable-experiment=native-assets"` and `$env:FLUTTER_ARGS="..."` (failed).
-  3. Clean build with `--clear-cache`.
-- **Status:** The build is blocked by a transitive dependency in the Flutter environment that requires an experimental flag not currently exposed by the Flet CLI packager.
+**Most recently working on:** Fixed the APK build blocker by setting up GitHub Actions CI. Local Windows builds are permanently blocked by Flutter 3.29.2's `objective_c` native-assets requirement.
 
-**Approved but not yet done:** Awaiting user instructions on how to proceed with the build blocker.
-**Needs Testing:** Verify layout stability on actual Android device once APK build is resolved.
+**Currently Broken (local Windows build):** 
+- APK build on Windows fails due to Flutter 3.29.2 + `objective_c 9.4.1` native-assets incompatibility. No known workaround without modifying Flet CLI source code.
+
+**Resolved via GitHub Actions CI:**
+- First APK built successfully on June 7, 2026 using Flutter 3.24.0 + Python 3.11 + Flet 0.28.3 on ubuntu-latest.
+- Workflow file: `.github/workflows/build_apk.yml`
+- To trigger a new build: Push to `main` branch or go to Actions tab → "Build Android APK" → "Run workflow".
+
+**Needs Testing:** Install the CI-built APK on an actual Android device and verify layout stability, logout functionality, and navigation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## SECTION 8 — PENDING FEATURES
@@ -133,6 +147,43 @@
 
 1. Rebuild a stable, Android-compatible Navigation Stack that pops views correctly upon a hardware back button press, without resorting to broken `page.views` interceptor hacks.
 2. Verify full functionality of the Logout feature across all roles.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SECTION 9 — CI/CD BUILD PROCESS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### How to build APK
+
+All APK builds run via **GitHub Actions CI**. Local Windows builds are broken and not supported.
+
+**Trigger a build:**
+1. Push code to `main` branch (auto-triggers)
+2. Or go to https://github.com/rajatchawla66/mahalaxmi-bangles/actions → "Build Android APK" → "Run workflow" (manual trigger)
+
+**Download APK:**
+1. Wait for build to complete (~15-25 min)
+2. Click the completed workflow run
+3. Scroll to **Artifacts** section
+4. Download `mahalaxmi-bangles-v1.0.7.zip`
+5. Extract to get the `.apk` file
+
+### CI Environment
+
+| Component | Version |
+|-----------|---------|
+| OS | ubuntu-latest |
+| Python | 3.11 |
+| Flet | 0.28.3 |
+| Flutter | 3.24.0 (pinned via `subosito/flutter-action@v2`) |
+| Java | 17 (Temurin) |
+
+### Why Flutter 3.24.0?
+
+Flutter 3.29.2 ships Dart 3.10+ which enforces `--enable-experiment=native-assets` for Dart packages using native assets (like `objective_c`). Flet's `dart run serious_python:main` packaging step does not pass this flag, causing a build failure. Flutter 3.24.0 (Dart 3.5.x) predates this requirement and builds successfully.
+
+### Workflow file location
+
+`.github/workflows/build_apk.yml` — do not modify unless you understand the Flutter native-assets constraint.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## HOW TO USE THIS FILE

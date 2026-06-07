@@ -588,24 +588,17 @@ async def main(page: ft.Page):
             snack(f"Navigation error: {ex}", ft.Colors.RED_400)
 
     def show_exit_dialog():
-        if any(isinstance(c, ft.AlertDialog) and c.open for c in page.overlay):
+        if any(isinstance(c, ft.AlertDialog) and getattr(c, 'open', False) for c in page.overlay):
             return
         if len(page.views) < 2:
             page.views.append(ft.View(route="/", controls=[ft.Container()]))
 
-        _exiting = False
-
-        def handle_dismiss(e):
-            if not _exiting:
-                render()
-
         def handle_cancel(e):
             dlg.open = False
             page.update()
+            render()
 
         def handle_exit(e):
-            nonlocal _exiting
-            _exiting = True
             dlg.open = False
             page.update()
             try:
@@ -620,7 +613,6 @@ async def main(page: ft.Page):
                 ft.TextButton("Cancel", on_click=handle_cancel),
                 ft.TextButton("Exit", on_click=handle_exit),
             ],
-            on_dismiss=handle_dismiss,
         )
         page.overlay.append(dlg)
         dlg.open = True
@@ -885,6 +877,8 @@ async def main(page: ft.Page):
     page.build_category_fields = build_category_fields
 
     def render():
+        if any(isinstance(c, ft.AlertDialog) and getattr(c, 'open', False) for c in page.overlay):
+            return
         state = page.state
         # Clear previous UI on the current view
         page.controls.clear()

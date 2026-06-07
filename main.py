@@ -409,8 +409,6 @@ async def main(page: ft.Page):
 
     # Handle Android back button
     def on_view_pop_handler(e):
-        if len(page.views) > 1:
-            page.views.pop()
         go_back()
     page.on_view_pop = on_view_pop_handler
 
@@ -590,18 +588,31 @@ async def main(page: ft.Page):
             snack(f"Navigation error: {ex}", ft.Colors.RED_400)
 
     def show_exit_dialog():
-        if page.dialog and page.dialog.open:
+        if any(isinstance(c, ft.AlertDialog) and c.open for c in page.overlay):
             return
+        if len(page.views) < 2:
+            page.views.append(ft.View(route="/", controls=[ft.Container()]))
+
+        _exiting = False
+
+        def handle_dismiss(e):
+            if not _exiting:
+                render()
+
         def handle_cancel(e):
             dlg.open = False
             page.update()
+
         def handle_exit(e):
+            nonlocal _exiting
+            _exiting = True
             dlg.open = False
             page.update()
             try:
                 page.window.destroy()
             except Exception as ex:
                 print(f"ERROR: page.window.destroy() failed: {ex}")
+
         dlg = ft.AlertDialog(
             title=ft.Text("Exit App?"),
             content=ft.Text("Are you sure you want to exit?"),
@@ -609,8 +620,9 @@ async def main(page: ft.Page):
                 ft.TextButton("Cancel", on_click=handle_cancel),
                 ft.TextButton("Exit", on_click=handle_exit),
             ],
+            on_dismiss=handle_dismiss,
         )
-        page.dialog = dlg
+        page.overlay.append(dlg)
         dlg.open = True
         page.update()
 

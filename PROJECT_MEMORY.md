@@ -30,7 +30,7 @@
 - **Remote:** `https://github.com/rajatchawla66/mahalaxmi-bangles.git`
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
-- **CI Token:** Classic PAT with `repo` + `workflow` scopes (`***REMOVED***` — remove from remote URL after each push)
+- **CI Token:** Classic PAT with `repo` + `workflow` scopes (stored as GitHub secret, not in repo)
 - **Latest version:** v1.0.8 (build 4)
 
 ---
@@ -489,10 +489,9 @@ git push  # OR go to Actions tab → "Run workflow"
 # Download APK:
 # Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.8.zip
 
-# Git push with PAT:
-git push https://***REMOVED***@github.com/rajatchawla66/mahalaxmi-bangles.git main
-# Always reset remote URL after push:
-git remote set-url origin https://github.com/rajatchawla66/mahalaxmi-bangles.git
+# Git push (use personal access token when prompted):
+git push
+# Or set remote URL with embedded credentials (NOT RECOMMENDED — use GitHub CLI or credential manager)
 
 # Encoding workaround (PowerShell):
 $env:PYTHONIOENCODING='utf-8'

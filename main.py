@@ -601,8 +601,8 @@ async def main(page: ft.Page):
         def handle_exit(e):
             dlg.open = False
             page.update()
-            import os as _os, platform as _platform
-            if _platform.system() == 'Linux' and 'ANDROID_ARGUMENT' in _os.environ:
+            import os as _os
+            if page.platform == ft.PagePlatform.ANDROID:
                 _os._exit(0)
             else:
                 try:

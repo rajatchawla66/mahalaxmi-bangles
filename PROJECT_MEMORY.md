@@ -397,9 +397,9 @@ Exit: closes dialog → calls page.window.destroy()
 | **Date** | June 8, 2026 |
 | **Symptom** | Exit dialog appears correctly on back press. Clicking "Exit" dismisses the dialog but app stays open, no change. |
 | **Root Cause** | `page.window.destroy()` is not implemented for Android in Flet 0.28.3 (known upstream bug — flet-dev/flet#4808). The attribute is accepted silently by Flet but the Flutter-side handler never acts on it. |
-| **Fix** | Added platform detection in `handle_exit`: if `platform.system() == 'Linux'` and `'ANDROID_ARGUMENT'` in `os.environ`, call `os._exit(0)` to terminate the Python subprocess (which cleanly exits the entire Flutter app). Otherwise fall back to `page.window.destroy()`. |
+| **Fix** | Use `page.platform == ft.PagePlatform.ANDROID` for Android detection in `handle_exit`. On Android, call `os._exit(0)` to terminate the Python subprocess. On desktop, fall back to `page.window.destroy()`. |
 | **Files** | `main.py:601-611` (show_exit_dialog → handle_exit handler) |
-| **Note** | `os._exit(0)` is recommended by Flet community for Android as it directly kills the Python interpreter process, causing the Flutter container to detect disconnection and exit. Desktop path unchanged. |
+| **Note** | Previous attempt used `ANDROID_ARGUMENT` env var which is NOT set by Flet on Android. `page.platform` is set by the Flutter client during session handshake (`local_connection.py:44`) and is Flet's own mechanism for platform detection. Desktop path unchanged. |
 
 ---
 
@@ -413,7 +413,7 @@ Exit: closes dialog → calls page.window.destroy()
 - APK Build via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
 - Navigation & Hardware Back Button (interceptor preserved, no view popping)
 - Session Restore for All Roles (admin, labour, customer)
-- Exit Confirmation Dialog — Cancel works, Exit closes app (fixed BUG-013 via `os._exit(0)` on Android)
+- Exit Confirmation Dialog — Cancel works, Exit closes app (fixed BUG-013 via `page.platform` detection + `os._exit(0)` on Android)
 - Background Fetch Guard (render skips when dialog open)
 - Consistent APK Signing (cached debug keystore)
 
@@ -528,7 +528,7 @@ chcp 65001
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
 | June 8, 2026 | PAT regenerated and updated in remote URL. Security sweep complete. | PROJECT_MEMORY.md | Complete |
-| June 8, 2026 | BUG-013 fixed: `os._exit(0)` workaround for Android in `handle_exit`; desktop path unchanged. Confirmed root cause — Flet upstream bug #4808. | main.py, PROJECT_MEMORY.md | Complete |
+| June 8, 2026 | BUG-013 v2: corrected Android detection from `ANDROID_ARGUMENT` env var to `page.platform == ft.PagePlatform.ANDROID`. First attempt failed because Flet doesn't set `ANDROID_ARGUMENT`. | main.py, PROJECT_MEMORY.md | Complete — pushed, CI building |
 | June 8, 2026 | Project memory consolidation: merged 3 context files into PROJECT_MEMORY.md | PROJECT_MEMORY.md (new), archive/PROJECT_CONTEXT.md, archive/PROJECT_HANDOVER.md, archive/contextD.md | Complete |
 | June 8, 2026 | Exit dialog guard: added render() skip-return when dialog open; removed on_dismiss; simplified cancel/exit flow | main.py | Complete — pushed, CI building |
 | June 8, 2026 | Keystore caching: added actions/cache for ~/.android/debug.keystore; bumped to v1.0.8 | .github/workflows/build_apk.yml | Complete — pushed, CI building |

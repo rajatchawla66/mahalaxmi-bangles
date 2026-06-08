@@ -1,7 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\rajat\Labour-receipt\main.py", line 17, in <module>
-    from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer
-  File "C:\Users\rajat\Labour-receipt\views\pricing.py", line 550
-    print("DEBUG [render_catalogue] about to create ft.Wrap"); print(f"DEBUG badge_ctrls={badge_ctrls}"); ft.Wrap(spacing=6, run_spacing=2, controls=badge_ctrls),
-                                                             ^
-SyntaxError: invalid syntax

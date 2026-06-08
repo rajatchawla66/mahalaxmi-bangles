@@ -18,10 +18,13 @@ exclude = [
     "item_images",
     "storage",
     "cache",
+    "scratch",
+    "android",
     "__pycache__",
     "*.pdf",
     "*.log",
     "*.db",
+    "*.txt",
     "customer_session.json",
     ".flet"
 ]

@@ -42,19 +42,18 @@ jobs:
         run: |
           yes | flutter doctor --android-licenses || true
 
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-${{ runner.os }}
+      - name: Use committed debug keystore
+        run: |
+          mkdir -p ~/.android
+          cp android/debug.keystore ~/.android/debug.keystore
 
       - name: Build APK
         run: |
           flet build apk \
             --project "Mahalaxmi Bangles" \
             --product "Mahalaxmi Bangles" \
-            --build-number 4 \
-            --build-version "1.0.8" \
+            --build-number 5 \
+            --build-version "1.0.9" \
             --arch arm64-v8a \
             --skip-flutter-doctor
 

@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.8 (build 4)
+- **Latest version:** v1.0.9 (build 5)
 
 ---
 
@@ -372,10 +372,9 @@ Exit: closes dialog → calls page.window.destroy()
 |-------|--------|
 | **Date** | June 8, 2026 |
 | **Symptom** | "Package conflicts with existing package" — must uninstall and reinstall each time. |
-| **Root Cause** | GitHub Actions runners are ephemeral. Flutter generates a new random `~/.android/debug.keystore` on every build, so each APK has a different signing signature. Android rejects certificate mismatch. |
-| **Fix** | Cache `~/.android/debug.keystore` via `actions/cache@v4` with key `android-debug-keystore-${{ runner.os }}`. First build after fix generates + caches keystore; subsequent builds reuse it. |
-| **Files** | `.github/workflows/build_apk.yml` |
-| **Note** | First v1.0.8 build will still need uninstall (no cache yet). Subsequent builds update in-place. |
+| **Root Cause** | GitHub Actions runners are ephemeral. Each build generates a new random debug keystore, signing APK with a different certificate. Android rejects certificate mismatch. |
+| **Fix** | Committed deterministic debug keystore (`android/debug.keystore`) to repo. CI copies it to `~/.android/` before `flet build apk`. Every build uses the exact same signing key regardless of cache state. Removed unreliable `actions/cache` approach. |
+| **Files** | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new) |
 
 ---
 
@@ -415,7 +414,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Session Restore for All Roles (admin, labour, customer)
 - Exit Confirmation Dialog — Cancel works, Exit closes app (fixed BUG-013 via `page.platform` detection + `os._exit(0)` on Android)
 - Background Fetch Guard (render skips when dialog open)
-- Consistent APK Signing (cached debug keystore)
+- Consistent APK Signing (committed debug keystore at android/debug.keystore — no more uninstall/reinstall)
 - Karigar Slip PDF Share — generates styled PDF (maroon/gold card layout, image thumbnails, sizes boxes, multi-page), uploads to Supabase Storage with `x-upsert`, opens WhatsApp with public link. Direct local PDF attachment via WhatsApp not supported in current Flet setup.
 - Customer Item Detail UI — premium B2B catalogue layout: rounded image card, product info card (item# + category badge + price), compact +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview.
 
@@ -442,7 +441,7 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 1. Wait for build to complete (~15-25 min)
 2. Click the completed workflow run
 3. Scroll to **Artifacts** section
-4. Download `mahalaxmi-bangles-v1.0.8.zip`
+4. Download `mahalaxmi-bangles-v1.0.9.zip`
 5. Extract to get the `.apk` file
 
 ### CI Environment
@@ -468,7 +467,7 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 | `page.window.destroy()` fails on Android | Medium | Medium | Wrapped in try/except; app stays open if close fails |
 | Background thread calls `render()` during dialog | Medium | Low | Guard at top of `render()` skips execution when dialog open |
 | Exit dialog not rendering (Flet 0.28.3 overlay API issues) | Medium | Low | Same `page.overlay.append()` pattern as 2 other dialogs in codebase |
-| First build after keystore cache miss needs uninstall | Low | Certain (once) | Cache is populated after first build; subsequent builds update in-place |
+| First build after keystore cache miss needs uninstall | Low | Certain (once) | **Resolved** — committed deterministic keystore `android/debug.keystore` guarantees same signing key on every build. |
 | Session file path `"."` on Android when `FLET_APP_STORAGE_DATA` unset | Medium | Medium | `os.makedirs()` called; no crash, but session won't survive restart |
 | GitHub Actions cache eviction (7-day inactivity) | Low | Low | Rare for active project; if happens, one-time uninstall/reinstall needed |
 | Logout fails on real Android device | Medium | Medium | Test all three roles before production release |
@@ -487,7 +486,7 @@ flet run main.py
 git push  # OR go to Actions tab → "Run workflow"
 
 # Download APK:
-# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.8.zip
+# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.9.zip
 
 # Git push (PAT stored in remote URL):
 git push
@@ -527,6 +526,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 8, 2026 | BUG-011 fix v2: replaced unreliable actions/cache with committed deterministic debug keystore. Added `android/debug.keystore`, updated CI to copy it before build. Cleaned scratch/diagnostic files. Updated pyproject.toml exclusions. Bumped to v1.0.9 (build 5). | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new), `.gitignore`, `pyproject.toml`, `PROJECT_MEMORY.md` | Complete |
+| June 8, 2026 | FilePicker fix: replaced `await file_picker.pick_files(...)` (sync method returning None) with callback-based `on_result` pattern across 3 flows (pricing.py item upload, settings.py new/existing cover upload). | views/pricing.py, views/settings.py | Complete — Verified on device |
 | June 8, 2026 | Dead price-card code cleanup (Phase 1+3): deleted card_generator.py (170 lines), assets/logo.png, removed dead imports/routes, removed card_preview grey 300x300 Container, card_thumb, 🎨 badge, Cloudinary card generation from save/edit/costing flows. DB compatibility stubs left intact. | card_generator.py (del), assets/logo.png (del), main.py, views/pricing.py | Complete |
 | June 8, 2026 | Admin Items tab grey card fix: replaced `ft.Wrap(...)` (doesn't exist in Flet 0.28.3) with `ft.Row(wrap=True, run_spacing=2)`. Removed two unnecessary `wrap=True` from other Rows. | views/pricing.py | Complete — Verified on device |
 | June 8, 2026 | Customer Item Detail UI redesign: premium B2B catalogue layout. Replaced flat ListView with card-based layout: rounded image card with shadow, product info card (item# + price side-by-side), +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview. QtyStepper helper class preserves `.value` contract for add_to_cart(). All 5 edge cases tested (with/without sizes, with/without color, no image, no item guard). | views/customer.py | Complete |

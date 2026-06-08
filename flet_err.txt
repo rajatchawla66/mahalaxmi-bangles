@@ -1,4 +1,0 @@
-C:\Users\rajat\Labour-receipt\venv\Lib\site-packages\flet\app.py:243: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
-  if asyncio.iscoroutinefunction(session_handler):
-C:\Users\rajat\Labour-receipt\venv\Lib\site-packages\flet\core\page.py:865: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
-  if asyncio.iscoroutinefunction(handler):

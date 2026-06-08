@@ -43,7 +43,6 @@
 | `db.py` | Supabase REST API layer — all CRUD operations via httpx | **HIGH** — do not touch casually |
 | `utils.py` | Common helper functions | Low |
 | `cache.py` | Offline caching logic for database sync | Low |
-| `card_generator.py` | Price card generation (Cloudinary) | Low |
 | `session_helper.py` | Session save/load/clear for all roles | Low (created June 8, 2026) |
 | `slip_pdf_generator.py` | Karigar slip PDF generation (fpdf2, maroon/gold card layout, image thumbnails, sizes table, multi-page) | Low |
 | `views/auth.py` | Role selection / login screen | Low (pick_role saves session for admin/labour) |
@@ -528,6 +527,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 8, 2026 | Dead price-card code cleanup (Phase 1+3): deleted card_generator.py (170 lines), assets/logo.png, removed dead imports/routes, removed card_preview grey 300x300 Container, card_thumb, 🎨 badge, Cloudinary card generation from save/edit/costing flows. DB compatibility stubs left intact. | card_generator.py (del), assets/logo.png (del), main.py, views/pricing.py | Complete |
+| June 8, 2026 | Admin Items tab grey card fix: replaced `ft.Wrap(...)` (doesn't exist in Flet 0.28.3) with `ft.Row(wrap=True, run_spacing=2)`. Removed two unnecessary `wrap=True` from other Rows. | views/pricing.py | Complete — Verified on device |
 | June 8, 2026 | Customer Item Detail UI redesign: premium B2B catalogue layout. Replaced flat ListView with card-based layout: rounded image card with shadow, product info card (item# + price side-by-side), +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview. QtyStepper helper class preserves `.value` contract for add_to_cart(). All 5 edge cases tested (with/without sizes, with/without color, no image, no item guard). | views/customer.py | Complete |
 | June 8, 2026 | PAT regenerated and updated in remote URL. Security sweep complete. | PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | BUG-013 v2: corrected Android detection from `ANDROID_ARGUMENT` env var to `page.platform == ft.PagePlatform.ANDROID`. First attempt failed because Flet doesn't set `ANDROID_ARGUMENT`. | main.py, PROJECT_MEMORY.md | Complete |

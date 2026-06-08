@@ -1,12 +1,5 @@
 import flet as ft
 import db
-try:
-    import card_generator
-    HAS_CARD_GENERATOR = True
-except ImportError:
-    HAS_CARD_GENERATOR = False
-    card_generator = None
-
 import os
 import urllib.parse
 import shutil
@@ -23,11 +16,38 @@ def view_rate_list(page: ft.Page):
     # End context injection
 
     picked_path = {"value": ""}
-    generated_card = {"path": ""}
     editing_existing = {"flag": False}
 
-    file_picker = ft.FilePicker()
+    # ---- Image picking (callback-based for Flet 0.28.3) ----
+    def on_pick_result(e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+        src = e.files[0].path
+        if not src:
+            snack("No path on this platform.", ft.Colors.ORANGE_600)
+            return
+        ext = src.rsplit(".", 1)[-1].lower()
+        tmp_path = os.path.join(db.IMAGES_FOLDER, f"_pending.{ext}")
+        try:
+            shutil.copy(src, tmp_path)
+        except Exception as ex:
+            snack(f"Image copy failed: {ex}", ft.Colors.RED_500)
+            return
+        picked_path["value"] = tmp_path
+        preview_img.content = ft.Image(
+            src=tmp_path, width=120, height=120,
+            fit=ft.ImageFit.COVER, border_radius=8,
+        )
+        page.update()
+
+    file_picker = ft.FilePicker(on_result=on_pick_result)
     page.overlay.append(file_picker)
+
+    def pick_file(_):
+        file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
+
+    def take_photo(_):
+        file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
 
     # ---- Controls for Tab A ----
     mode_text = ft.Text("🆕 New item", color=ft.Colors.GREEN_600, size=13)
@@ -94,13 +114,6 @@ def view_rate_list(page: ft.Page):
         alignment=ft.alignment.center,
         content=ft.Text("No image", color=ft.Colors.GREY_600),
     )
-    card_preview = ft.Container(
-        width=300, height=300,
-        bgcolor=ft.Colors.GREY_200, border_radius=8,
-        alignment=ft.alignment.center,
-        content=ft.Text("No card yet", color=ft.Colors.GREY_600),
-    )
-
     # ---- Item lookup on keystroke ----
     def on_item_lookup(_e):
         item_no = (item_tf.value or "").strip()
@@ -144,63 +157,17 @@ def view_rate_list(page: ft.Page):
                 )
             else:
                 preview_img.content = ft.Text("No image", color=ft.Colors.GREY_600)
-            if existing.get("card_path") and os.path.exists(existing["card_path"]):
-                card_preview.content = ft.Image(
-                    src=existing["card_path"], width=300, height=300,
-                    fit=ft.ImageFit.CONTAIN,
-                )
-                generated_card["path"] = existing["card_path"]
-            else:
-                card_preview.content = ft.Text("No card yet", color=ft.Colors.GREY_600)
-                generated_card["path"] = ""
         else:
             editing_existing["flag"] = False
             mode_text.value = "🆕 New item"
             mode_text.color = ft.Colors.GREEN_600
-            card_preview.content = ft.Text("No card yet", color=ft.Colors.GREY_600)
-            generated_card["path"] = ""
             availability_switch.visible = False
             availability_switch.value = True
         page.update()
 
     item_tf.on_change = on_item_lookup
 
-    # ---- Image picking ----
-    async def _do_pick(file_type=ft.FilePickerFileType.IMAGE):
-        try:
-            files = await file_picker.pick_files(
-                allow_multiple=False, file_type=file_type,
-            )
-        except Exception as ex:
-            snack(f"Picker failed: {ex}", ft.Colors.RED_500)
-            return
-        if not files:
-            return
-        src = files[0].path
-        if not src:
-            snack("No path on this platform.", ft.Colors.ORANGE_600)
-            return
-        ext = src.rsplit(".", 1)[-1].lower()
-        tmp_path = os.path.join(db.IMAGES_FOLDER, f"_pending.{ext}")
-        try:
-            shutil.copy(src, tmp_path)
-        except Exception as ex:
-            snack(f"Image copy failed: {ex}", ft.Colors.RED_500)
-            return
-        picked_path["value"] = tmp_path
-        preview_img.content = ft.Image(
-            src=tmp_path, width=120, height=120,
-            fit=ft.ImageFit.COVER, border_radius=8,
-        )
-        page.update()
-
-    async def pick_file(_):
-        await _do_pick(ft.FilePickerFileType.IMAGE)
-
-    async def take_photo(_):
-        await _do_pick(ft.FilePickerFileType.IMAGE)
-
-    # ---- Save & Generate Card ----
+    # ---- Save Item ---
     def on_save_and_generate(_):
         item_no = (item_tf.value or "").strip()
         if not item_no:
@@ -259,30 +226,7 @@ def view_rate_list(page: ft.Page):
                              has_sizes=has_sizes_switch.value,
                              has_color=has_color_switch.value)
 
-        # Generate price card via Cloudinary
-        card_path = ""
-        try:
-            snack("Generating price card in cloud...", ft.Colors.BLUE_400)
-            card_path = db.generate_price_card_url(
-                image_url=final_image_url,
-                item_number=item_no,
-                selling_price=sp_val,
-                shop_name="Mahalaxmi Bangles",
-            )
-        except Exception as ex:
-            snack(f"Card generation failed: {ex}", ft.Colors.ORANGE_600)
-            card_path = ""
-
-        if card_path:
-            db.update_item_card_path(item_no, card_path)
-            generated_card["path"] = card_path
-            card_preview.content = ft.Image(
-                src=card_path, width=300, height=300, fit=ft.ImageFit.CONTAIN,
-            )
-        else:
-            generated_card["path"] = ""
-
-        snack("✅ Item saved!" + (" Card generated!" if card_path else ""))
+        snack("✅ Item saved!")
         if "catalog_cache" in state:
             del state["catalog_cache"]
         render_catalogue()
@@ -350,12 +294,12 @@ def view_rate_list(page: ft.Page):
                     ft.Text("➕ Add / Edit Item", size=16, weight="bold"),
                     mode_text,
                     ft.Column(controls=[item_tf], spacing=10),
-                    ft.Row(spacing=10, wrap=True, controls=[
+                    ft.Row(spacing=10, controls=[
                         category_dd,
                         sub_category_dd,
                     ]),
                     availability_switch,
-                    ft.Row([has_sizes_switch, has_color_switch], spacing=16, wrap=True),
+                    ft.Row([has_sizes_switch, has_color_switch], spacing=16),
                     ft.Row(spacing=10, controls=[
                         preview_img,
                         ft.Column(width=120, spacing=8, controls=[
@@ -367,16 +311,6 @@ def view_rate_list(page: ft.Page):
                         "💾 Save Item", icon=ft.Icons.SAVE,
                         on_click=on_save_and_generate, height=48, width=300,
                     ),
-                ],
-            ))),
-            ft.Card(elevation=3, content=ft.Container(padding=12, border_radius=10, content=ft.Column(
-                spacing=10,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                controls=[
-                    ft.Text("🎨 Price Card Preview", size=14,
-                            weight="bold", color=ft.Colors.GREY_700),
-                    card_preview,
-                    ft.Row([]),
                 ],
             ))),
             ft.Container(height=24),
@@ -439,23 +373,8 @@ def view_rate_list(page: ft.Page):
                                    alignment=ft.alignment.center,
                                    content=ft.Text("—", color=ft.Colors.GREY_500),
                                    opacity=item_opacity)
-            if it.get("card_path") and os.path.exists(it["card_path"]):
-                card_thumb = ft.Image(src=it["card_path"], width=55, height=55,
-                                      fit=ft.ImageFit.COVER, border_radius=4)
-            else:
-                card_thumb = ft.Container(width=55, height=55,
-                                          bgcolor=ft.Colors.GREY_100, border_radius=4,
-                                          alignment=ft.alignment.center,
-                                          content=ft.Text("—", size=10))
             margin = it["selling_price"] - it["cost_price"]
-            has_card = bool(it.get("card_path"))
             badge_ctrls = [ft.Text(it["item_number"], size=14, weight="bold")]
-            if has_card:
-                badge_ctrls.append(ft.Container(
-                    padding=ft.Padding(left=5, right=5, top=1, bottom=1),
-                    bgcolor=ft.Colors.INDIGO_50, border_radius=4,
-                    content=ft.Text("🎨", size=10),
-                ))
             item_category = it.get("category", "Chuda")
             badge_ctrls.append(ft.Container(
                 padding=ft.Padding(left=5, right=5, top=1, bottom=1),
@@ -523,15 +442,6 @@ def view_rate_list(page: ft.Page):
                         preview_img.content = ft.Image(
                             src=item_data["image_url"], width=120, height=120,
                             fit=ft.ImageFit.COVER, border_radius=8)
-                    if item_data.get("card_path") and os.path.exists(item_data["card_path"]):
-                        card_preview.content = ft.Image(
-                            src=item_data["card_path"], width=300, height=300,
-                            fit=ft.ImageFit.CONTAIN)
-                        generated_card["path"] = item_data["card_path"]
-
-                    else:
-                        card_preview.content = ft.Text("No card yet", color=ft.Colors.GREY_600)
-
                     tabs_ctrl.selected_index = 0
                     page.update()
                 return _h
@@ -544,11 +454,10 @@ def view_rate_list(page: ft.Page):
                         ft.Row(spacing=8, controls=[
                             img,
                             ft.Column(width=180, spacing=3, controls=[
-                                ft.Row(badge_ctrls, spacing=6, wrap=True),
+                                ft.Row(badge_ctrls, spacing=6, wrap=True, run_spacing=2),
                                 ft.Text(f"CP: ₹{it['cost_price']:.0f}  •  SP: ₹{it['selling_price']:.0f}", size=12),
                                 ft.Text(f"Margin: ₹{margin:.0f}", size=11, color=ft.Colors.GREY_700),
                             ]),
-                            card_thumb,
                         ]),
 
                         ft.Row([
@@ -884,26 +793,6 @@ def view_costing_detail(page: ft.Page):
                     os.remove(c_path)
             except Exception:
                 pass
-
-            image_url = item.get("image_url", "")
-            if image_url:
-                import threading
-                def _update_card():
-                    try:
-                        new_card = db.generate_price_card_url(
-                            image_url=image_url,
-                            item_number=item_number,
-                            selling_price=selling_price,
-                            shop_name="Mahalaxmi Bangles"
-                        )
-                        if new_card:
-                            db.update_item_card_path(item_number, new_card)
-                            c_path = cache._catalog_path()
-                            if os.path.exists(c_path):
-                                os.remove(c_path)
-                    except Exception:
-                        pass
-                threading.Thread(target=_update_card, daemon=True).start()
 
             snack(f"✅ Costing saved for {item_number}. SP: ₹{selling_price:,.0f}")
             go_back()

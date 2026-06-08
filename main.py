@@ -31,14 +31,6 @@ import auth
 import cache
 import session_helper
 
-try:
-    import card_generator
-    HAS_CARD_GENERATOR = True
-except ImportError:
-    # Pillow not available (e.g., on Android APK)
-    HAS_CARD_GENERATOR = False
-    card_generator = None
-
 # ---------- Constants ----------
 COLOR_OPTIONS = ["Light Mehroon", "Dark Mehroon", "Red", "Rani", "Custom"]
 BOX_OPTIONS = ["Jodi Box", "Mahal Box", "Flap Box", "Velvet Box"]
@@ -503,7 +495,6 @@ async def main(page: ft.Page):
         "costing": "home",
         "costing_detail": "costing",
         "price_list": "home",
-        "share_catalog": "home",
         "settings": "home",
         "manage_categories": "settings",
         "karigar_slip": "order_detail",

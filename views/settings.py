@@ -191,16 +191,42 @@ def view_manage_categories(page: ft.Page):
         content=ft.Text("No cover image", size=10, color=ft.Colors.GREY_500),
     )
 
-    file_picker = ft.FilePicker()
+    # ---- File picker (callback-based for Flet 0.28.3) ----
+    _picker_ctx = {}
+
+    def _new_cover_picked(src):
+        picked_cover["path"] = src
+        preview_img.content = ft.Image(src=src, width=120, height=120, fit=ft.ImageFit.COVER, border_radius=8)
+        preview_img.update()
+
+    def _change_cover_picked(src, cid, cname):
+        snack(f"Uploading cover for {cname}...", ft.Colors.BLUE_400)
+        url = db.upload_category_image(src, cname)
+        if url:
+            ok = db.update_category_cover(cid, url)
+            if ok:
+                snack("✅ Cover image updated!")
+                refresh_cat_list()
+                page.update()
+            else:
+                snack("❌ Failed to update DB", ft.Colors.RED_500)
+        else:
+            snack("❌ Upload failed", ft.Colors.RED_500)
+
+    def on_pick_result(e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+        src = e.files[0].path
+        cb = _picker_ctx.pop("callback", None)
+        if cb:
+            cb(src)
+
+    file_picker = ft.FilePicker(on_result=on_pick_result)
     page.overlay.append(file_picker)
 
-    async def pick_cover_new(_):
-        files = await file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
-        if files:
-            src = files[0].path
-            picked_cover["path"] = src
-            preview_img.content = ft.Image(src=src, width=120, height=120, fit=ft.ImageFit.COVER, border_radius=8)
-            preview_img.update()
+    def pick_cover_new(_):
+        _picker_ctx["callback"] = lambda src: _new_cover_picked(src)
+        file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
 
     # --- Add new category form ---
     name_tf = ft.TextField(label="Category Name *", hint_text="e.g., Payal")
@@ -261,22 +287,9 @@ def view_manage_categories(page: ft.Page):
                 return _h
 
             def make_change_cover_handler(cid, cname):
-                async def _h(_):
-                    files = await file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
-                    if files:
-                        src = files[0].path
-                        snack(f"Uploading cover for {cname}...", ft.Colors.BLUE_400)
-                        url = db.upload_category_image(src, cname)
-                        if url:
-                            ok = db.update_category_cover(cid, url)
-                            if ok:
-                                snack("✅ Cover image updated!")
-                                refresh_cat_list()
-                                page.update()
-                            else:
-                                snack("❌ Failed to update DB", ft.Colors.RED_500)
-                        else:
-                            snack("❌ Upload failed", ft.Colors.RED_500)
+                def _h(_):
+                    _picker_ctx["callback"] = lambda src: _change_cover_picked(src, cid, cname)
+                    file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
                 return _h
 
             status_badge = ft.Container(

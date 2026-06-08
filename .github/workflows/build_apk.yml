@@ -56,7 +56,6 @@ jobs:
             --build-number 4 \
             --build-version "1.0.8" \
             --arch arm64-v8a \
-            --flutter-build-args "--target-platform" "android-arm64" \
             --skip-flutter-doctor
 
       - name: Find APK file

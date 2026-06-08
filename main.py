@@ -601,10 +601,14 @@ async def main(page: ft.Page):
         def handle_exit(e):
             dlg.open = False
             page.update()
-            try:
-                page.window.destroy()
-            except Exception as ex:
-                print(f"ERROR: page.window.destroy() failed: {ex}")
+            import os as _os, platform as _platform
+            if _platform.system() == 'Linux' and 'ANDROID_ARGUMENT' in _os.environ:
+                _os._exit(0)
+            else:
+                try:
+                    page.window.destroy()
+                except Exception as ex:
+                    print(f"ERROR: page.window.destroy() failed: {ex}")
 
         dlg = ft.AlertDialog(
             title=ft.Text("Exit App?"),

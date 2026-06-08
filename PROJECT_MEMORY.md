@@ -419,7 +419,6 @@ Exit: closes dialog → calls page.window.destroy()
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
-- Exit dialog now uses `os._exit(0)` — verify app closes cleanly on real device
 - White screen after force-stop/reopen
 
 ### ❌ Blocked
@@ -528,7 +527,8 @@ chcp 65001
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
 | June 8, 2026 | PAT regenerated and updated in remote URL. Security sweep complete. | PROJECT_MEMORY.md | Complete |
-| June 8, 2026 | BUG-013 v2: corrected Android detection from `ANDROID_ARGUMENT` env var to `page.platform == ft.PagePlatform.ANDROID`. First attempt failed because Flet doesn't set `ANDROID_ARGUMENT`. | main.py, PROJECT_MEMORY.md | Complete — pushed, CI building |
+| June 8, 2026 | BUG-013 v2: corrected Android detection from `ANDROID_ARGUMENT` env var to `page.platform == ft.PagePlatform.ANDROID`. First attempt failed because Flet doesn't set `ANDROID_ARGUMENT`. | main.py, PROJECT_MEMORY.md | Complete |
+| June 8, 2026 | **BUG-013 CONFIRMED FIXED**: Exit dialog correctly closes app on Android via `page.platform` detection + `os._exit(0)`. | main.py, PROJECT_MEMORY.md | Complete — Verified on device |
 | June 8, 2026 | Project memory consolidation: merged 3 context files into PROJECT_MEMORY.md | PROJECT_MEMORY.md (new), archive/PROJECT_CONTEXT.md, archive/PROJECT_HANDOVER.md, archive/contextD.md | Complete |
 | June 8, 2026 | Exit dialog guard: added render() skip-return when dialog open; removed on_dismiss; simplified cancel/exit flow | main.py | Complete — pushed, CI building |
 | June 8, 2026 | Keystore caching: added actions/cache for ~/.android/debug.keystore; bumped to v1.0.8 | .github/workflows/build_apk.yml | Complete — pushed, CI building |

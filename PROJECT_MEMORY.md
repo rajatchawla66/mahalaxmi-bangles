@@ -418,6 +418,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Background Fetch Guard (render skips when dialog open)
 - Consistent APK Signing (cached debug keystore)
 - Karigar Slip PDF Share — generates styled PDF (maroon/gold card layout, image thumbnails, sizes boxes, multi-page), uploads to Supabase Storage with `x-upsert`, opens WhatsApp with public link. Direct local PDF attachment via WhatsApp not supported in current Flet setup.
+- Customer Item Detail UI — premium B2B catalogue layout: rounded image card, product info card (item# + category badge + price), compact +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -527,6 +528,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 8, 2026 | Customer Item Detail UI redesign: premium B2B catalogue layout. Replaced flat ListView with card-based layout: rounded image card with shadow, product info card (item# + price side-by-side), +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview. QtyStepper helper class preserves `.value` contract for add_to_cart(). All 5 edge cases tested (with/without sizes, with/without color, no image, no item guard). | views/customer.py | Complete |
 | June 8, 2026 | PAT regenerated and updated in remote URL. Security sweep complete. | PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | BUG-013 v2: corrected Android detection from `ANDROID_ARGUMENT` env var to `page.platform == ft.PagePlatform.ANDROID`. First attempt failed because Flet doesn't set `ANDROID_ARGUMENT`. | main.py, PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | **BUG-013 CONFIRMED FIXED**: Exit dialog correctly closes app on Android via `page.platform` detection + `os._exit(0)`. | main.py, PROJECT_MEMORY.md | Complete — Verified on device |

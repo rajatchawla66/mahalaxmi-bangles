@@ -547,54 +547,258 @@ def view_customer_search(page: ft.Page):
 # ============================================================
 
 def view_item_detail(page: ft.Page):
-    """Detail view for a selected catalogue item."""
+    """Detail view for a selected catalogue item — premium B2B redesign."""
     state = page.state
     item = state.get('customer_selected_item')
     if not item:
         page.go('customer_dashboard')
         return ft.Container()
 
-    controls = []
-    img_url = item.get("image_url")
-    if img_url:
-        controls.append(
-            ft.Container(
-                alignment=ft.alignment.center,
-                content=ft.Image(src=img_url, width=350, height=350, fit=ft.ImageFit.CONTAIN, border_radius=12)
-            )
-        )
-    
-    controls.append(ft.Text(item.get("item_number", ""), size=26, weight="bold"))
-    controls.append(ft.Text(f"Price: ₹{item.get('selling_price', 0)}", size=20, color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_600))
-    
-    breadcrumb = item.get('category', '')
-    if item.get('sub_category'):
-        breadcrumb += f" > {item['sub_category']}"
-    controls.append(ft.Text(breadcrumb, size=14, color=ft.Colors.GREY_600))
-
     has_sizes = bool(item.get('has_sizes', 0))
     has_color = bool(item.get('has_color', 0))
 
+    # ─── Helper: QtyStepper ────────────────────────────────────────
+    class QtyStepper:
+        """Plain Python helper — NOT a Flet Control subclass.
+        Exposes .value (str) for add_to_cart() compatibility.
+        """
+        def __init__(self, size_label, initial=0, on_change=None):
+            self._val = initial
+            self._on_change = on_change
+
+            self.qty_text = ft.Text(
+                str(self._val), size=16, weight=ft.FontWeight.W_600,
+                width=32, text_align=ft.TextAlign.CENTER,
+            )
+
+            def on_minus(e):
+                if self._val > 0:
+                    self._val -= 1
+                    self.qty_text.value = str(self._val)
+                    self.qty_text.update()
+                    if self._on_change:
+                        self._on_change()
+
+            def on_plus(e):
+                self._val += 1
+                self.qty_text.value = str(self._val)
+                self.qty_text.update()
+                if self._on_change:
+                    self._on_change()
+
+            self.row = ft.Row(
+                controls=[
+                    ft.Container(
+                        width=48,
+                        content=ft.Text(
+                            size_label, weight=ft.FontWeight.W_600, size=14,
+                        ),
+                    ),
+                    ft.IconButton(
+                        ft.Icons.REMOVE_CIRCLE_OUTLINE, icon_size=22,
+                        icon_color=ft.Colors.BLUE_900, on_click=on_minus,
+                    ),
+                    self.qty_text,
+                    ft.IconButton(
+                        ft.Icons.ADD_CIRCLE_OUTLINE, icon_size=22,
+                        icon_color=ft.Colors.BLUE_900, on_click=on_plus,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                spacing=2,
+            )
+
+        @property
+        def value(self):
+            return str(self._val)
+
+    # ─── Summary controls (declared early for closure capture) ─────
+    summary_sets_text = ft.Text("0", size=16, weight=ft.FontWeight.W_700)
+    summary_amount_text = ft.Text(
+        "₹0", size=16, weight=ft.FontWeight.W_700, color=ft.Colors.GREEN_700,
+    )
+    cta_qty_text = ft.Text(
+        "0 sets", size=13, color=ft.Colors.GREY_700, weight=ft.FontWeight.W_500,
+    )
+    cta_amount_text = ft.Text(
+        "₹0", size=15, weight=ft.FontWeight.W_700, color=ft.Colors.GREEN_700,
+    )
+
+    # ─── Image section ─────────────────────────────────────────────
+    img_url = item.get("image_url")
+    image_section = None
+    if img_url:
+        image_section = ft.Container(
+            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            border_radius=16,
+            shadow=ft.BoxShadow(
+                spread_radius=0, blur_radius=8,
+                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+                offset=ft.Offset(0, 4),
+            ),
+            content=ft.Image(
+                src=img_url, height=300, width=float('inf'),
+                fit=ft.ImageFit.COVER, border_radius=16,
+                error_content=ft.Container(
+                    height=300, bgcolor=ft.Colors.GREY_100,
+                    alignment=ft.alignment.center,
+                    content=ft.Icon(
+                        ft.Icons.IMAGE_NOT_SUPPORTED, size=48,
+                        color=ft.Colors.GREY_400,
+                    ),
+                ),
+            ),
+        )
+
+    # ─── Product info card ─────────────────────────────────────────
+    category = item.get('category', '')
+    subcategory = item.get('sub_category', '')
+    breadcrumb = f"{category} > {subcategory}" if subcategory else category
+
+    info_card = ft.Container(
+        border_radius=12, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        padding=16,
+        content=ft.Row([
+            ft.Column([
+                ft.Text(
+                    item.get("item_number", "—"),
+                    size=20, weight=ft.FontWeight.W_700,
+                ),
+                ft.Container(
+                    padding=ft.Padding(8, 3, 8, 3),
+                    bgcolor=ft.Colors.BLUE_50,
+                    border_radius=4,
+                    content=ft.Text(
+                        breadcrumb, size=11, color=ft.Colors.BLUE_700,
+                        weight=ft.FontWeight.W_500,
+                    ),
+                ),
+            ], spacing=8),
+            ft.Column([
+                ft.Text(
+                    f"₹{item.get('selling_price', 0)}", size=22,
+                    color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_700,
+                    text_align=ft.TextAlign.RIGHT,
+                ),
+                ft.Text(
+                    "/set", size=12, color=ft.Colors.GREY_500,
+                    text_align=ft.TextAlign.RIGHT,
+                ),
+            ], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.END),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+    )
+
+    # ─── Color dropdown ────────────────────────────────────────────
     color_dd = None
+    color_section = None
     if has_color:
-        color_dd = ft.Dropdown(label="Select Color", options=[ft.dropdown.Option(c) for c in ["Red", "Mehroon", "Rani", "Other"]], width=350)
-        controls.append(ft.Container(height=10))
-        controls.append(color_dd)
+        color_dd = ft.Dropdown(
+            label="Select Colour",
+            options=[ft.dropdown.Option(c) for c in ["Red", "Mehroon", "Rani", "Other"]],
+        )
+        color_section = ft.Container(
+            border_radius=12, bgcolor=ft.Colors.WHITE,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+            padding=12,
+            content=color_dd,
+        )
 
+    # ─── Quantity section ──────────────────────────────────────────
     size_steppers = {}
-    if has_sizes:
-        controls.append(ft.Container(height=10))
-        controls.append(ft.Text("Select Quantities (Size-wise)", weight="bold"))
-        for sz in ["2.2", "2.4", "2.6", "2.8", "2.10"]:
-            qty_tf = ft.TextField(label=f"Size {sz}", value="0", width=120, keyboard_type=ft.KeyboardType.NUMBER)
-            size_steppers[sz] = qty_tf
-            controls.append(qty_tf)
-    else:
-        controls.append(ft.Container(height=10))
-        qty_tf = ft.TextField(label="Quantity", value="1", width=120, keyboard_type=ft.KeyboardType.NUMBER)
-        size_steppers["qty"] = qty_tf
-        controls.append(qty_tf)
+    qty_card_controls = []
 
+    if has_sizes:
+        qty_card_controls.append(
+            ft.Text("Select Quantity", size=16, weight=ft.FontWeight.W_600),
+        )
+        qty_card_controls.append(ft.Container(height=6))
+
+        def update_summary():
+            total_sets = 0
+            for s in size_steppers.values():
+                try:
+                    total_sets += int(s.value or 0)
+                except ValueError:
+                    pass
+            unit_price = item.get('selling_price', 0) or 0
+            total_amount = total_sets * unit_price
+            summary_sets_text.value = str(total_sets)
+            summary_amount_text.value = f"₹{total_amount}"
+            cta_qty_text.value = f"{total_sets} sets"
+            cta_amount_text.value = f"₹{total_amount}"
+            for t in (summary_sets_text, summary_amount_text,
+                      cta_qty_text, cta_amount_text):
+                t.update()
+
+        for sz in ["2.2", "2.4", "2.6", "2.8", "2.10"]:
+            stepper = QtyStepper(sz, on_change=update_summary)
+            size_steppers[sz] = stepper
+            qty_card_controls.append(
+                ft.Container(
+                    padding=ft.Padding(4, 2, 4, 2),
+                    border=ft.border.only(
+                        bottom=ft.border.BorderSide(1, ft.Colors.GREY_100),
+                    ),
+                    content=stepper.row,
+                )
+            )
+    else:
+        def update_summary():
+            total_sets = 0
+            try:
+                total_sets = int(size_steppers.get("qty", object()).value or 0)
+            except (ValueError, AttributeError):
+                total_sets = 0
+            unit_price = item.get('selling_price', 0) or 0
+            total_amount = total_sets * unit_price
+            summary_sets_text.value = str(total_sets)
+            summary_amount_text.value = f"₹{total_amount}"
+            cta_qty_text.value = f"{total_sets} sets"
+            cta_amount_text.value = f"₹{total_amount}"
+            for t in (summary_sets_text, summary_amount_text,
+                      cta_qty_text, cta_amount_text):
+                t.update()
+
+        qty_stepper = QtyStepper("Qty", initial=1, on_change=update_summary)
+        size_steppers["qty"] = qty_stepper
+        qty_card_controls.append(
+            ft.Container(
+                padding=ft.Padding(4, 2, 4, 2),
+                content=qty_stepper.row,
+            )
+        )
+
+    quantity_card = ft.Container(
+        border_radius=12, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        padding=16,
+        content=ft.Column(qty_card_controls, spacing=0),
+    )
+
+    # ─── Order summary card ────────────────────────────────────────
+    summary_card = ft.Container(
+        border_radius=12, bgcolor=ft.Colors.GREY_50,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        padding=16,
+        content=ft.Column([
+            ft.Row([
+                ft.Text("Total Sets", size=14, color=ft.Colors.GREY_700),
+                summary_sets_text,
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Divider(height=10, color=ft.Colors.GREY_200),
+            ft.Row([
+                ft.Text("Estimated Total", size=14, weight=ft.FontWeight.W_600),
+                summary_amount_text,
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Text(
+                "Quantities can be updated before placing order",
+                size=10, color=ft.Colors.GREY_400, italic=True,
+            ),
+        ], spacing=4),
+    )
+
+    # ─── add_to_cart (IDENTICAL to original — NO CHANGES) ──────────
     def add_to_cart(_):
         cart_item = {
             'item_number': item.get('item_number'),
@@ -634,11 +838,61 @@ def view_item_detail(page: ft.Page):
         page.snack('✅ Added to cart')
         page.go_back()
 
-    controls.append(ft.Container(height=30))
-    controls.append(ft.FilledButton("Add to Cart", icon=ft.Icons.ADD_SHOPPING_CART, on_click=add_to_cart, height=50, width=350))
-    controls.append(ft.Container(height=40))
-    
-    return ft.ListView(expand=True, padding=20, controls=controls)
+    # ─── Assemble body controls ────────────────────────────────────
+    body_controls = []
+    if image_section is not None:
+        body_controls.append(image_section)
+    body_controls.append(info_card)
+    if color_section is not None:
+        body_controls.append(color_section)
+    body_controls.append(quantity_card)
+    body_controls.append(summary_card)
+    body_controls.append(ft.Container(height=20))
+
+    scroll_content = ft.Container(
+        expand=True,
+        padding=16,
+        content=ft.Column(
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+            spacing=16,
+            controls=body_controls,
+        ),
+    )
+
+    # ─── Bottom CTA bar ────────────────────────────────────────────
+    bottom_cta = ft.Container(
+        bgcolor=ft.Colors.WHITE,
+        border=ft.border.only(top=ft.border.BorderSide(1, ft.Colors.GREY_200)),
+        padding=ft.Padding(16, 12, 16, 12),
+        content=ft.Row([
+            ft.Column([
+                cta_qty_text,
+                cta_amount_text,
+            ], spacing=2),
+            ft.FilledButton(
+                "Add to Cart",
+                icon=ft.Icons.ADD_SHOPPING_CART,
+                on_click=add_to_cart,
+                height=48,
+                width=200,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=12),
+                    bgcolor=ft.Colors.BLUE_900,
+                    color=ft.Colors.WHITE,
+                ),
+            ),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, spacing=12),
+    )
+
+    return ft.Column(
+        expand=True,
+        spacing=0,
+        controls=[
+            scroll_content,
+            bottom_cta,
+        ],
+    )
 
 def view_cart(page: ft.Page):
     """Cart view for customers."""

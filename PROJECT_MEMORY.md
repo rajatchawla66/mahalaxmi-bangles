@@ -30,7 +30,7 @@
 - **Remote:** `https://github.com/rajatchawla66/mahalaxmi-bangles.git`
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
-- **CI Token:** Classic PAT with `repo` + `workflow` scopes (stored as GitHub secret, not in repo)
+- **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
 - **Latest version:** v1.0.8 (build 4)
 
 ---
@@ -489,9 +489,12 @@ git push  # OR go to Actions tab → "Run workflow"
 # Download APK:
 # Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.8.zip
 
-# Git push (use personal access token when prompted):
+# Git push (PAT stored in remote URL):
 git push
-# Or set remote URL with embedded credentials (NOT RECOMMENDED — use GitHub CLI or credential manager)
+
+# NEVER store PATs in any file tracked by git. Use remote URL or GitHub CLI.
+# To update remote URL with new PAT:
+git remote set-url origin https://<PAT>@github.com/rajatchawla66/mahalaxmi-bangles.git
 
 # Encoding workaround (PowerShell):
 $env:PYTHONIOENCODING='utf-8'
@@ -524,6 +527,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 8, 2026 | PAT regenerated and updated in remote URL. Security sweep complete. | PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | Exit button not closing app — logged as BUG-013. Moved 3 legacy context files to archive/. Tagged for tomorrow. | PROJECT_MEMORY.md | Pending — BUG-013 unresolved |
 | June 8, 2026 | Project memory consolidation: merged 3 context files into PROJECT_MEMORY.md | PROJECT_MEMORY.md (new), archive/PROJECT_CONTEXT.md, archive/PROJECT_HANDOVER.md, archive/contextD.md | Complete |
 | June 8, 2026 | Exit dialog guard: added render() skip-return when dialog open; removed on_dismiss; simplified cancel/exit flow | main.py | Complete — pushed, CI building |

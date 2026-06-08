@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from io import BytesIO
 from typing import Optional
-
-from PIL import Image
-from fpdf import FPDF
 
 FONT_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -24,6 +20,7 @@ def _mm_to_pt(mm: float) -> float:
 
 
 def _init_pdf() -> FPDF:
+    from fpdf import FPDF
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     if os.path.exists(FONT_PATH):
@@ -99,6 +96,7 @@ def _draw_item_block(
 
     if image_available:
         try:
+            from PIL import Image
             img = Image.open(image_path)
             img_w, img_h = img.size
             ratio = img_w / img_h if img_h > 0 else 1

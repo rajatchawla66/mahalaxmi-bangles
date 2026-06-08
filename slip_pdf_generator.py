@@ -70,12 +70,7 @@ def _draw_header(pdf: FPDF, order: dict, customer_name: str = ""):
     pdf.set_text_color(*GOLD)
     pdf.set_font("Hindi", "", 12)
     pdf.cell(0, 6, "Karigar Slip", ln=True, align="C")
-    pdf.ln(1)
-
-    pdf.set_text_color(*DARK_GREY)
-    pdf.set_font("Hindi", "", 7)
-    pdf.cell(0, 3, "PDF FORMAT VERSION: v2", ln=True, align="C")
-    pdf.ln(2)
+    pdf.ln(3)
 
     _hline(pdf, x, pdf.get_y(), w)
     pdf.ln(4)

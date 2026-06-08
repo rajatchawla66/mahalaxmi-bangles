@@ -417,7 +417,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Exit Confirmation Dialog — Cancel works, Exit closes app (fixed BUG-013 via `page.platform` detection + `os._exit(0)` on Android)
 - Background Fetch Guard (render skips when dialog open)
 - Consistent APK Signing (cached debug keystore)
-- Karigar Slip PDF Share — generates styled PDF (maroon/gold card layout, image thumbnails, sizes boxes, multi-page), uploads to Supabase, opens WhatsApp with link
+- Karigar Slip PDF Share — generates styled PDF (maroon/gold card layout, image thumbnails, sizes boxes, multi-page), uploads to Supabase Storage with `x-upsert`, opens WhatsApp with public link. Direct local PDF attachment via WhatsApp not supported in current Flet setup.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -535,5 +535,6 @@ chcp 65001
 | June 8, 2026 | Keystore caching: added actions/cache for ~/.android/debug.keystore; bumped to v1.0.8 | .github/workflows/build_apk.yml | Complete — pushed, CI building |
 | June 8, 2026 | Exit dialog + white screen fix: removed view pop from handler; switched dialog to overlay API; defensive view guard | main.py | Complete — pushed, CI building |
 | June 8, 2026 | Session restore for all roles + exit confirmation dialog | session_helper.py (new), main.py, views/auth.py | Complete |
-| June 8, 2026 | Redesigned Karigar Slip PDF: maroon/gold palette, bordered details card, 3-zone item layout (image | center text | sizes box), image placeholders, divider lines, signature line. Replaced flat cells with rect-based cards. | slip_pdf_generator.py | Complete — tested locally |
+| June 8, 2026 | Diagnostic marker "PDF FORMAT VERSION: v2" added to PDF header, confirmed APK runs redesigned generator, marker removed after verification. | slip_pdf_generator.py | Complete — Verified on device |
+| June 8, 2026 | Redesigned Karigar Slip PDF: maroon/gold palette, bordered details card, 3-zone item layout (image | center text | sizes box), image placeholders, divider lines, signature line. Replaced flat cells with rect-based cards. | slip_pdf_generator.py | Complete — Verified on device |
 | June 7, 2026 | Initial CI setup, git init, first APK build, back-button fix, PROJECT_CONTEXT.md | Multiple | Complete |

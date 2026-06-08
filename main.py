@@ -24,9 +24,6 @@ import time
 from pathlib import Path
 
 import flet as ft
-# TODO: Fix WhatsApp Sharing for 0.28.3
-# from flet import Share
-# _dummy = Share()
 
 import db
 from utils import *
@@ -402,10 +399,6 @@ async def main(page: ft.Page):
     page.bgcolor = ft.Colors.GREY_50
 
     db.init_db()
-    
-    # TODO: Fix WhatsApp Sharing for 0.28.3
-    # share_service = ft.Share()
-    # page.overlay.append(share_service)
 
     # Handle Android back button
     def on_view_pop_handler(e):

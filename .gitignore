@@ -10,5 +10,6 @@ __pycache__/
 *.log
 *.db
 customer_session.json
+ci_runs.json
 .flet/
 .streamlit/

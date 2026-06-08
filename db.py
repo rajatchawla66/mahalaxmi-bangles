@@ -147,6 +147,43 @@ def upload_image(file_path: str, item_number: str) -> str:
     return public_url
 
 
+def upload_pdf(file_path: str, order_id: int) -> str:
+    """Upload a PDF file to Supabase Storage and return the public URL.
+
+    Args:
+        file_path: Local path to the PDF file.
+        order_id: Order ID used to generate a unique filename.
+
+    Returns:
+        Public URL string on success, empty string on failure.
+    """
+    if not file_path or not os.path.exists(file_path):
+        return ""
+
+    safe_name = f"slip_{order_id}.pdf"
+    storage_path = f"order-pdfs/{safe_name}"
+
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+
+    url = f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{storage_path}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/pdf",
+        "x-upsert": "true",
+    }
+
+    try:
+        r = httpx.put(url, headers=headers, content=file_bytes, timeout=30)
+        r.raise_for_status()
+    except Exception:
+        return ""
+
+    public_url = f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{storage_path}"
+    return public_url
+
+
 import sqlite3
 # =============================================================
 # SCHEMA / INIT (no-op for Supabase — tables created via SQL)

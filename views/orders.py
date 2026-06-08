@@ -1,6 +1,4 @@
 import flet as ft
-# TODO: Fix WhatsApp Sharing for 0.28.3
-# from flet import Share
 import db
 import os
 import urllib.parse
@@ -9,6 +7,7 @@ from pathlib import Path
 import cache
 from utils import *
 import datetime
+import slip_pdf_generator
 
 def view_order_type_picker(page: ft.Page):
     state = page.state
@@ -874,17 +873,6 @@ def view_karigar_slip(page: ft.Page):
     build_category_fields = page.build_category_fields
     # End context injection
 
-    # TODO: Fix WhatsApp Sharing for 0.28.3
-    # Find the Share service (previously registered globally in main.py via page.services)
-    # share_ctrl = None
-    # for svc in page.overlay:
-    #     if isinstance(svc, ft.Share):
-    #         share_ctrl = svc
-    #         break
-    # if not share_ctrl:
-    #     share_ctrl = ft.Share()
-    #     page.overlay.append(share_ctrl)
-
     order_id = state.get("slip_order_id")
     if not order_id:
         return ft.Container(content=ft.Text("No order selected"), padding=16)
@@ -1052,22 +1040,50 @@ def view_karigar_slip(page: ft.Page):
         return f"https://wa.me/?text={urllib.parse.quote(text)}"
 
     async def share_slip(_):
-        # TODO: Fix WhatsApp Sharing for 0.28.3
-        # try:
-        #     import pdf_generator
-        #     from pathlib import Path
-        #     import db
-        #
-        #     # Generate the PDF
-        #     out_path = Path(db.IMAGES_FOLDER).parent / f"slip_{order_id}.pdf"
-        #     pdf_generator.create_slip_pdf(order, line_items, str(out_path))
-        #
-        #     snack("PDF generated! Opening share menu...", ft.Colors.BLUE_700)
-        #     await share_ctrl.share_files([ft.ShareFile(str(out_path))])
-        #
-        # except Exception as e:
-        #     snack(f"Failed to share: {str(e)}", ft.Colors.RED_700)
-        snack("Sharing disabled temporarily for migration.", ft.Colors.ORANGE_700)
+        try:
+            state["slip_busy"] = True
+            snack("Generating PDF...", ft.Colors.BLUE_700)
+            page.update()
+
+            storage_dir = os.environ.get("FLET_APP_STORAGE_DATA", ".")
+            os.makedirs(storage_dir, exist_ok=True)
+            pdf_path = os.path.join(storage_dir, f"slip_{order_id}.pdf")
+
+            customer_name = order.get("customer_name", "")
+
+            ok = slip_pdf_generator.create_slip_pdf(
+                order, line_items, image_lookup, pdf_path,
+                customer_name=customer_name,
+            )
+            if not ok:
+                snack("PDF generation failed.", ft.Colors.RED_700)
+                return
+            snack("PDF generated. Uploading...", ft.Colors.BLUE_700)
+            page.update()
+
+            pdf_url = db.upload_pdf(pdf_path, order_id)
+            if not pdf_url:
+                snack("PDF upload failed. Check network and try again.", ft.Colors.RED_700)
+                return
+
+            msg_lines = [
+                f"Mahalaxmi Bangles - Order #{order_id}",
+                f"Customer: {customer_name or 'N/A'}",
+                f"Order Date: {order.get('order_date', 'N/A')}",
+                "",
+                f"View slip: {pdf_url}",
+            ]
+            wa_text = "\n".join(msg_lines)
+            wa_url = _make_whatsapp_url(wa_text)
+
+            snack("Opening WhatsApp...", ft.Colors.BLUE_700)
+            page.update()
+            _safe_launch_url(page, wa_url)
+
+        except Exception as ex:
+            snack(f"Share failed: {str(ex)}", ft.Colors.RED_700)
+        finally:
+            state["slip_busy"] = False
 
     action_buttons = ft.Row(
         [

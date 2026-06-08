@@ -416,13 +416,13 @@ Exit: closes dialog → calls page.window.destroy()
 - Exit Confirmation Dialog — Cancel works, Exit closes app (fixed BUG-013 via `page.platform` detection + `os._exit(0)` on Android)
 - Background Fetch Guard (render skips when dialog open)
 - Consistent APK Signing (cached debug keystore)
+- Karigar Slip PDF Share — generates PDF with product images, uploads to Supabase, opens WhatsApp with link
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
 - White screen after force-stop/reopen
 
 ### ❌ Blocked
-- **WhatsApp Sharing** — `ft.Share` API changed in Flet 0.28.3; no replacement found yet
 - **Local Windows APK Build** — Flutter 3.29.2 + `objective_c` native-assets incompatibility
 - **`--template-ref 0.27.0`** — Gradle fails with `webview_flutter_android` Dart version mismatch
 

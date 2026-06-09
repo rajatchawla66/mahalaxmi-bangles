@@ -402,6 +402,35 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-014: Catalogue page does not scroll
+| Field | Detail |
+|-------|--------|
+| **Date** | June 9, 2026 |
+| **Symptom** | Catalogue item grid is cut off at bottom of screen; cannot scroll to see all items. |
+| **Root Cause** | The outer `ft.Column(scroll=ft.ScrollMode.AUTO)` in `view_catalogue()` was missing `expand=True`, so it sized to its content rather than filling the View height, and scroll never engaged. |
+| **Fix** | Added `expand=True` to the outer Column in `view_catalogue()` (`views/pricing.py:408`). The Column now fills available space and scroll activates on overflow. |
+| **Files** | `views/pricing.py:408` |
+
+### BUG-015: Home auto-scrolls to top on background refresh
+| Field | Detail |
+|-------|--------|
+| **Date** | June 9, 2026 |
+| **Symptom** | After background thread fetches new orders, the home page scrolls back to the top, losing the user's scroll position. |
+| **Root Cause** | `fetch_latest_data()` background thread called `page.app_render()`, which destroys and rebuilds the entire View, resetting the scroll position to 0. |
+| **Fix** | Extracted order card building into `_build_order_cards()`. Created a persistent `_cards_column` reference. Background thread now does `_cards_column.controls = _build_order_cards(latest); page.update()` instead of `page.app_render()`. Delete handler also uses the same in-place update. Removed old duplicate `fetch_latest_data` that was still calling `app_render()`. |
+| **Files** | `views/home.py:42-69` (delete old function), `views/home.py:75+` (_build_order_cards, _cards_column) |
+
+### BUG-016: Editing an item creates a duplicate instead of updating
+| Field | Detail |
+|-------|--------|
+| **Date** | June 9, 2026 |
+| **Symptom** | When editing a catalogue item via Admin > Catalogue > tap card, the item is saved as a NEW record instead of updating the existing one. |
+| **Root Cause** | The `item_number` TextField was editable during edit. When the user changed the item number, the save flow called `db.get_item_by_number()` which found no match, so it fell into the INSERT path instead of UPDATE. |
+| **Fix** | Set `item_tf.read_only = True` when `state["edit_item"]` is present (`views/pricing.py:168`). Reset to `False` after save (`views/pricing.py:233`). The item number is locked during edit, so the lookup always finds the existing record and takes the UPDATE path. |
+| **Files** | `views/pricing.py:168, 233` |
+
+---
+
 ## 8. FEATURES STATUS
 
 ### ✅ Working
@@ -419,6 +448,9 @@ Exit: closes dialog → calls page.window.destroy()
 - Customer Item Detail UI — premium B2B catalogue layout: rounded image card, product info card (item# + category badge + price), compact +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview.
 - Customer Dashboard Phase 3 — portrait category tiles (3:4 ratio, 2-per-row), cascading image fallback (cover → first item → monogram), no ResponsiveRow/wrap.
 - Admin Navigation Restructure — nested Items tab (Add/Edit + Catalogue ft.Tabs) replaced with two standalone NavBar destinations: Add Item and Catalogue. 5-tab NavBar: Home, Add Item, Catalogue, Costing, Settings.
+- Catalogue page scroll (BUG-014) — outer Column has `expand=True`, Catalogue scrolls on overflow.
+- Home scroll position preserved on background refresh (BUG-015) — in-place `_cards_column.controls` update instead of `page.app_render()`.
+- Edit item no longer creates duplicate (BUG-016) — `item_tf.read_only=True` during edit locks item number.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -514,6 +546,7 @@ chcp 65001
 - Reference bug history to avoid repeating past mistakes
 - Follow architecture rules (Section 5)
 - Use Quick Reference (Section 11) for common commands
+- **After EVERY tool call that changes code**, immediately update the relevant section in this file before moving to the next task. Do not batch updates at the end.
 
 **After EVERY significant change:**
 1. Update the relevant section (bug history, features status, architecture)
@@ -528,6 +561,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 9, 2026 | BUG-014/015/016 fix round: Catalogue no-scroll (added `expand=True` to outer Column), Home auto-scroll-to-top (replaced `page.app_render()` bg thread with in-place `_cards_column.controls` update), Edit duplicate item (made `item_tf.read_only=True` during edit). Extracted `_build_order_cards()`. Added rule: update PROJECT_MEMORY.md after every code change, not batched. | views/pricing.py, views/home.py, PROJECT_MEMORY.md | Complete |
 | June 9, 2026 | Admin Nav Restructure: replaced nested Items tab (ft.Tabs with Add/Edit + Catalogue) with two standalone NavBar destinations. Created `view_add_item()` and `view_catalogue()`, removed `view_rate_list()`. Edit-from-catalogue uses `state["edit_item"]` + navigation to `"add_item"`. 5-tab NavBar: Home, Add Item, Catalogue, Costing, Settings. | views/pricing.py, main.py, PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | Customer Dashboard Phase 3: redesigned category tiles to portrait 3:4 ratio, 2-per-row manual layout (no ResponsiveRow), cascading image fallback (cover → first item image → monogram). Removed item grid filter chip row. Bumped to v1.0.10 (build 6). | views/customer.py, PROJECT_MEMORY.md | Complete — pushed, CI building |
 | June 8, 2026 | BUG-011 fix v2: replaced unreliable actions/cache with committed deterministic debug keystore. Added `android/debug.keystore`, updated CI to copy it before build. Cleaned scratch/diagnostic files. Updated pyproject.toml exclusions. Bumped to v1.0.9 (build 5). | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new), `.gitignore`, `pyproject.toml`, `PROJECT_MEMORY.md` | Complete |

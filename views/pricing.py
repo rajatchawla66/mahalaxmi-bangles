@@ -166,6 +166,7 @@ def view_add_item(page: ft.Page):
     edit_item = state.get("edit_item")
     if edit_item:
         item_tf.value = edit_item.get("item_number", "")
+        item_tf.read_only = True
         on_item_lookup(None)
         state.pop("edit_item", None)
 
@@ -230,6 +231,7 @@ def view_add_item(page: ft.Page):
 
         # Reset all form fields for the next item
         item_tf.value = ""
+        item_tf.read_only = False
         category_dd.value = None
         sub_category_dd.value = None
         sub_category_dd.visible = False
@@ -406,6 +408,7 @@ def view_catalogue(page: ft.Page):
     render_catalogue()
 
     return ft.Column(
+        expand=True,
         scroll=ft.ScrollMode.AUTO,
         spacing=10,
         controls=[

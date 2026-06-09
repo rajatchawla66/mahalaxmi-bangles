@@ -670,12 +670,6 @@ async def main(page: ft.Page):
             color=ft.Colors.WHITE,
             actions=[
                 ft.IconButton(
-                    ft.Icons.SYNC,
-                    icon_color=ft.Colors.WHITE,
-                    tooltip="Sync Offline",
-                    on_click=lambda _: go("sync_page"),
-                ),
-                ft.IconButton(
                     icon=ft.Icons.LOGOUT,
                     icon_color=ft.Colors.RED_600,
                     tooltip="Logout",
@@ -878,11 +872,25 @@ async def main(page: ft.Page):
         cur = state.get("current_page")
         role = state.get("role")
 
+        # Customer catalogue refresh handler
+        def _customer_refresh(_):
+            try:
+                fresh = db.get_customer_catalogue()
+                fresh_cats = db.get_categories(active_only=True)
+                state["customer_full_catalogue"] = fresh
+                state["customer_categories"] = fresh_cats
+                snack("✅ Catalogue refreshed")
+                render()
+            except Exception as ex:
+                snack(f"❌ Refresh failed: {ex}", ft.Colors.RED_400)
+
+        _refresh_icon = ft.IconButton(ft.Icons.REFRESH, icon_color=ft.Colors.WHITE, tooltip="Refresh Catalogue", on_click=_customer_refresh)
+
         body = None
         appbar = None
         navbar = None
 
-        # Routing based on current_page
+        # --- Routing ---
         if cur == "login":
             body = v_auth.view_login(page)
         elif cur == "home":
@@ -935,59 +943,55 @@ async def main(page: ft.Page):
         elif cur == "customer_dashboard":
             cart_count = len(state.get("customer_cart", []))
             appbar = build_app_bar(state.get("username", "Catalogue"), show_back=False)
-            appbar.actions.insert(0, 
-                ft.Stack([
-                    ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
-                    ft.Container(
-                        content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
-                        bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
-                        right=5, top=5, visible=cart_count > 0
-                    )
-                ])
-            )
+            cart_stack = ft.Stack([
+                ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
+                ft.Container(
+                    content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
+                    bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
+                    right=5, top=5, visible=cart_count > 0
+                )
+            ])
+            appbar.actions = [_refresh_icon, cart_stack] + appbar.actions[:1]
             body = v_customer.view_customer_dashboard(page)
         elif cur == "customer_subcategories":
             cart_count = len(state.get("customer_cart", []))
             appbar = build_app_bar(state.get("customer_selected_category", "Subcategories"), show_back=True)
-            appbar.actions = [
-                ft.Stack([
-                    ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
-                    ft.Container(
-                        content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
-                        bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
-                        right=5, top=5, visible=cart_count > 0
-                    )
-                ])
-            ]
+            cart_stack = ft.Stack([
+                ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
+                ft.Container(
+                    content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
+                    bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
+                    right=5, top=5, visible=cart_count > 0
+                )
+            ])
+            appbar.actions = [_refresh_icon, cart_stack]
             body = v_customer.view_customer_subcategories(page)
         elif cur == "customer_items":
             cart_count = len(state.get("customer_cart", []))
             title = state.get("customer_selected_category", "Items")
             appbar = build_app_bar(title, show_back=True)
-            appbar.actions = [
-                ft.Stack([
-                    ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
-                    ft.Container(
-                        content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
-                        bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
-                        right=5, top=5, visible=cart_count > 0
-                    )
-                ])
-            ]
+            cart_stack = ft.Stack([
+                ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
+                ft.Container(
+                    content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
+                    bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
+                    right=5, top=5, visible=cart_count > 0
+                )
+            ])
+            appbar.actions = [_refresh_icon, cart_stack]
             body = v_customer.view_customer_items(page)
         elif cur == "customer_search_results":
             cart_count = len(state.get("customer_cart", []))
             appbar = build_app_bar("Search Results", show_back=True)
-            appbar.actions = [
-                ft.Stack([
-                    ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
-                    ft.Container(
-                        content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
-                        bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
-                        right=5, top=5, visible=cart_count > 0
-                    )
-                ])
-            ]
+            cart_stack = ft.Stack([
+                ft.IconButton(ft.Icons.SHOPPING_CART, icon_color=ft.Colors.WHITE, on_click=lambda _: go("cart")),
+                ft.Container(
+                    content=ft.Text(str(cart_count), size=10, color=ft.Colors.WHITE, weight="bold"),
+                    bgcolor=ft.Colors.RED_500, border_radius=10, padding=3,
+                    right=5, top=5, visible=cart_count > 0
+                )
+            ])
+            appbar.actions = [_refresh_icon, cart_stack]
             body = v_customer.view_customer_search(page)
         elif cur == "item_detail":
             appbar = build_app_bar("Item Detail", show_back=True)

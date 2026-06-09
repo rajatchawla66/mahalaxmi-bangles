@@ -137,28 +137,7 @@ def view_settings(page: ft.Page):
         )
     )
 
-    # --- Card 3: Data & Sync ---
-    sync_card = ft.Card(
-        content=ft.Container(
-            padding=20,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Text("Data & Sync", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Text("Sync catalogue, orders, images and offline data.", size=12, color=ft.Colors.GREY_600),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.SYNC, color=ft.Colors.GREEN_600),
-                        title=ft.Text("Offline Sync", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("Sync local data to Supabase cloud"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("sync_page")
-                    ),
-                ]
-            )
-        )
-    )
-
-    # --- Card 4: Account ---
+    # --- Card 3: Account ---
     account_card = ft.Card(
         content=ft.Container(
             padding=20,
@@ -185,7 +164,6 @@ def view_settings(page: ft.Page):
         controls=[
             catalogue_card,
             pricing_card,
-            sync_card,
             account_card,
         ]
     )

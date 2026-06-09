@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.13 (build 9)
+- **Latest version:** v1.0.14 (build 31)
 
 ---
 
@@ -477,7 +477,7 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 1. Wait for build to complete (~15-25 min)
 2. Click the completed workflow run
 3. Scroll to **Artifacts** section
-4. Download `mahalaxmi-bangles-v1.0.13.zip`
+4. Download `mahalaxmi-bangles-v1.0.14.zip`
 5. Extract to get the `.apk` file
 
 ### How to bump version
@@ -569,6 +569,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 9, 2026 | Fixed RangeError 12 in Costing Detail: wrapped bottom section (margin, SP preview, save button) in a Column so `visible=False` on custom_margin_row doesn't corrupt ListView child count. Root cause: Flet ListView builder miscounts visible children when a direct child has `visible=False`. | views/pricing.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.14 (build 31) |
 | June 9, 2026 | Dead price-card code cleanup (Step A+B): deleted `generate_price_card_url()`, `CLOUDINARY_*` constants, `update_item_card_path()` from db.py. No view/db changes. | db.py, PROJECT_MEMORY.md | Complete |
 | June 9, 2026 | Admin Settings UI restructured into 4 grouped cards: Catalogue & Categories, Materials & Pricing, Data & Sync, Account. Each with title + subtitle icons. No logic changes. | views/settings.py, PROJECT_MEMORY.md | Complete |
 | June 9, 2026 | BUG-014/015/016 fix round + `page.pop_dialog()` fix in pricing.py and home.py delete confirmations (4 sites). Added rule: update PROJECT_MEMORY.md after every code change. | views/pricing.py, views/home.py, PROJECT_MEMORY.md | Complete — pushed, CI building v1.0.12 (build 8) |

@@ -153,7 +153,15 @@ def view_home(page: ft.Page):
                     page.update()
                 return _h
 
-            subtitle_controls = [status_badge]
+            # Title row with inline status badge
+            title_controls = [
+                status_badge,
+                ft.Text(f"Order #{order_id}  •  {order['order_date']}", size=13, weight="bold"),
+            ]
+            title_row = ft.Row(spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER, controls=title_controls)
+
+            # Subtitle (no status badge — moved to title)
+            subtitle_controls = []
             if is_admin:
                 subtitle_controls.append(ft.Text(order["customer_name"], size=12, color=ft.Colors.GREY_700))
             if cat_chips:
@@ -161,12 +169,14 @@ def view_home(page: ft.Page):
             if is_admin:
                 subtitle_controls.append(ft.Text(f"₹{order['total_amount']:,.2f}", size=13, weight="bold", color=ft.Colors.INDIGO_700))
 
+            # Trailing: popup menu for pending admin orders; chevron for labour
             if is_admin and status == "pending":
-                trailing = ft.Row(spacing=0, controls=[
-                    ft.IconButton(ft.Icons.CHECK_CIRCLE, icon_color=ft.Colors.GREEN_700, icon_size=20, tooltip="Confirm", on_click=make_status_handler(order_id, "confirmed")),
-                    ft.IconButton(ft.Icons.CANCEL, icon_color=ft.Colors.RED_600, icon_size=20, tooltip="Cancel", on_click=make_status_handler(order_id, "cancelled")),
-                    ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED_500, icon_size=20, tooltip="Delete", on_click=make_delete_handler(order_id)),
-                ])
+                popup_items = [
+                    ft.PopupMenuItem(text="Confirm", icon=ft.Icons.CHECK_CIRCLE, on_click=make_status_handler(order_id, "confirmed")),
+                    ft.PopupMenuItem(text="Cancel", icon=ft.Icons.CANCEL, on_click=make_status_handler(order_id, "cancelled")),
+                    ft.PopupMenuItem(text="Delete", icon=ft.Icons.DELETE, on_click=make_delete_handler(order_id)),
+                ]
+                trailing = ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, icon_color=ft.Colors.GREY_600, items=popup_items)
             elif not is_admin:
                 trailing = ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400)
             else:
@@ -176,15 +186,8 @@ def view_home(page: ft.Page):
                 ft.ListTile(
                     on_click=on_order_tap(order_id),
                     bgcolor=ft.Colors.WHITE,
-                    leading=ft.Container(
-                        width=6, height=50,
-                        bgcolor=cat_color,
-                        border_radius=3,
-                    ),
-                    title=ft.Text(
-                        f"Order #{order_id}  •  {order['order_date']}",
-                        size=13, weight="bold",
-                    ),
+                    leading=ft.Container(width=6, height=50, bgcolor=cat_color, border_radius=3),
+                    title=title_row,
                     subtitle=ft.Column(spacing=4, controls=subtitle_controls),
                     trailing=trailing,
                 )

@@ -451,6 +451,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Catalogue page scroll (BUG-014) — outer Column has `expand=True`, Catalogue scrolls on overflow.
 - Home scroll position preserved on background refresh (BUG-015) — in-place `_cards_column.controls` update instead of `page.app_render()`.
 - Edit item no longer creates duplicate (BUG-016) — `item_tf.read_only=True` during edit locks item number.
+- Admin Settings UI organized — 4 grouped cards (Catalogue & Categories, Materials & Pricing, Data & Sync, Account) with section titles and subtitles. No logic changes.
+- Dead Cloudinary price-card code removed — deleted `generate_price_card_url()`, `update_item_card_path()`, and `CLOUDINARY_*` constants from `db.py`. Steps A+B only.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -561,7 +563,9 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
-| June 9, 2026 | BUG-014/015/016 fix round: Catalogue no-scroll (added `expand=True` to outer Column), Home auto-scroll-to-top (replaced `page.app_render()` bg thread with in-place `_cards_column.controls` update), Edit duplicate item (made `item_tf.read_only=True` during edit). Extracted `_build_order_cards()`. Added rule: update PROJECT_MEMORY.md after every code change, not batched. | views/pricing.py, views/home.py, PROJECT_MEMORY.md | Complete |
+| June 9, 2026 | Dead price-card code cleanup (Step A+B): deleted `generate_price_card_url()`, `CLOUDINARY_*` constants, `update_item_card_path()` from db.py. No view/db changes. | db.py, PROJECT_MEMORY.md | Complete |
+| June 9, 2026 | Admin Settings UI restructured into 4 grouped cards: Catalogue & Categories, Materials & Pricing, Data & Sync, Account. Each with title + subtitle icons. No logic changes. | views/settings.py, PROJECT_MEMORY.md | Complete |
+| June 9, 2026 | BUG-014/015/016 fix round + `page.pop_dialog()` fix in pricing.py and home.py delete confirmations (4 sites). Added rule: update PROJECT_MEMORY.md after every code change. | views/pricing.py, views/home.py, PROJECT_MEMORY.md | Complete — pushed, CI building v1.0.12 (build 8) |
 | June 9, 2026 | Admin Nav Restructure: replaced nested Items tab (ft.Tabs with Add/Edit + Catalogue) with two standalone NavBar destinations. Created `view_add_item()` and `view_catalogue()`, removed `view_rate_list()`. Edit-from-catalogue uses `state["edit_item"]` + navigation to `"add_item"`. 5-tab NavBar: Home, Add Item, Catalogue, Costing, Settings. | views/pricing.py, main.py, PROJECT_MEMORY.md | Complete |
 | June 8, 2026 | Customer Dashboard Phase 3: redesigned category tiles to portrait 3:4 ratio, 2-per-row manual layout (no ResponsiveRow), cascading image fallback (cover → first item image → monogram). Removed item grid filter chip row. Bumped to v1.0.10 (build 6). | views/customer.py, PROJECT_MEMORY.md | Complete — pushed, CI building |
 | June 8, 2026 | BUG-011 fix v2: replaced unreliable actions/cache with committed deterministic debug keystore. Added `android/debug.keystore`, updated CI to copy it before build. Cleaned scratch/diagnostic files. Updated pyproject.toml exclusions. Bumped to v1.0.9 (build 5). | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new), `.gitignore`, `pyproject.toml`, `PROJECT_MEMORY.md` | Complete |

@@ -436,11 +436,6 @@ def set_item_availability(item_number: str, is_available: bool) -> bool:
     })
 
 
-def update_item_card_path(item_number: str, card_path: str) -> bool:
-    return _patch("rate_list", f"item_number=eq.{quote(item_number)}", {
-        "card_path": card_path,
-    })
-
 
 def update_item_image_and_card(item_number: str, image_url: str,
                                card_path: str) -> bool:
@@ -706,82 +701,6 @@ def get_unpriced_items() -> list:
     return rows
 
 
-# =============================================================
-# CLOUDINARY PRICE CARD GENERATION
-# =============================================================
-
-CLOUDINARY_CLOUD_NAME = "duwvd4t6j"
-CLOUDINARY_UPLOAD_PRESET = "ml_default"
-
-
-def generate_price_card_url(image_url: str, item_number: str,
-                            selling_price: float,
-                            shop_name: str = "Mahalaxmi Bangles") -> str:
-    """Generate a price card by uploading image to Cloudinary and applying text overlay.
-
-    Steps:
-    1. Download image from Supabase (or use local path)
-    2. Upload to Cloudinary with a stable public_id
-    3. Return a transformation URL with text overlay
-
-    Works on Android (no Pillow needed).
-
-    Returns:
-        Cloudinary URL with text overlay, or empty string on failure.
-    """
-    if not image_url:
-        return ""
-
-    from urllib.parse import quote as url_quote
-
-    safe_item = item_number.replace("/", "_").replace("\\", "_").replace(" ", "_")
-    price_text = f"Rs.{int(selling_price)}/-"
-    public_id = f"cards/{safe_item}"
-
-    # Step 1: Get image bytes
-    img_bytes = None
-    if image_url.startswith("http"):
-        try:
-            r = httpx.get(image_url, timeout=15)
-            if r.status_code == 200 and len(r.content) > 100:
-                img_bytes = r.content
-        except Exception:
-            pass
-    elif os.path.exists(image_url):
-        with open(image_url, "rb") as f:
-            img_bytes = f.read()
-
-    if not img_bytes:
-        return ""
-
-    # Step 2: Upload to Cloudinary (upsert via public_id)
-    upload_url = f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/image/upload"
-    ext = image_url.rsplit(".", 1)[-1].lower() if "." in image_url else "jpg"
-    content_type = "image/png" if ext == "png" else "image/jpeg"
-
-    try:
-        files = {"file": (f"product.{ext}", img_bytes, content_type)}
-        data = {
-            "upload_preset": CLOUDINARY_UPLOAD_PRESET,
-            "public_id": public_id,
-            "overwrite": "true",
-        }
-        r = httpx.post(upload_url, data=data, files=files, timeout=30)
-        if r.status_code != 200:
-            return ""
-    except Exception:
-        return ""
-
-    # Step 3: Build transformation URL with text overlay
-    card_url = (
-        f"https://res.cloudinary.com/{CLOUDINARY_CLOUD_NAME}/image/upload/"
-        f"w_1080,h_1080,c_fill/"
-        f"l_text:Arial_30_bold:{url_quote(shop_name)},co_white,g_south,y_180/"
-        f"l_text:Arial_52_bold:{url_quote(safe_item)},co_white,g_south,y_100/"
-        f"l_text:Arial_38_bold:{url_quote(price_text)},co_white,g_south,y_35/"
-        f"{public_id}.jpg"
-    )
-    return card_url
 
 # =============================================================
 # COSTING & MATERIALS

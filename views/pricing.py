@@ -351,13 +351,13 @@ def view_catalogue(page: ft.Page):
             def make_delete_handler(item_number):
                 def _h(_):
                     def close_dlg(e):
-                        page.pop_dialog()
+                        dlg_modal.open = False
                         page.update()
                     def confirm_delete(e):
                         db.delete_item(item_number)
                         if "catalog_cache" in state:
                             state["catalog_cache"] = [x for x in state["catalog_cache"] if x["item_number"] != item_number]
-                        page.pop_dialog()
+                        dlg_modal.open = False
                         snack(f"✅ Item {item_number} deleted!")
                         render_catalogue()
                         page.update()

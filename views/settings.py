@@ -28,56 +28,7 @@ def view_settings(page: ft.Page):
             snack("❌ Invalid margin value.")
         page.update()
 
-    # --- App Settings Card ---
-    settings_card = ft.Card(
-        content=ft.Container(
-            padding=20,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Text("App Settings", size=18, weight="bold"),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_600),
-                        title=ft.Text("Manage Categories", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("Add, edit, or remove item categories"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("manage_categories")
-                    ),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.SYNC, color=ft.Colors.GREEN_600),
-                        title=ft.Text("Offline Sync", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("Sync local data to Supabase cloud"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("sync_page")
-                    ),
-
-                    ft.Divider(height=20),
-                    ft.Text("Costing Defaults", size=16, weight="bold"),
-                    ft.Row([
-                        ft.TextField(
-                            label="Default Margin %",
-                            keyboard_type=ft.KeyboardType.NUMBER,
-                            value=str(db.get_default_margin()),
-                            width=160,
-                            hint_text="e.g. 30"
-                        ),
-                        ft.FilledButton(
-                            "💾 Save Margin",
-                            on_click=lambda e: _save_margin(e)
-                        )
-                    ]),
-                    ft.Divider(height=20),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
-                        title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),
-                        on_click=logout
-                    ),
-                ]
-            )
-        )
-    )
-
-    # --- Material Master Card ---
+    # --- Shared state for Material Master ---
     materials_list = ft.Column(spacing=5)
     new_mat_name = ft.TextField(label="Material Name *", expand=2, height=45)
     new_mat_rate = ft.TextField(label="Rate", expand=1, height=45, keyboard_type=ft.KeyboardType.NUMBER)
@@ -128,14 +79,52 @@ def view_settings(page: ft.Page):
         page.update()
         new_mat_name.focus()
 
-    materials_card = ft.Card(
+    # --- Card 1: Catalogue & Categories ---
+    catalogue_card = ft.Card(
         content=ft.Container(
             padding=20,
             content=ft.Column(
                 spacing=10,
                 controls=[
-                    ft.Text("Material Master", size=18, weight="bold"),
-                    ft.Text("Set rates here. Used in Cost Calculator.", size=12, color=ft.Colors.GREY_600),
+                    ft.Text("Catalogue & Categories", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Add, edit, activate/deactivate categories and cover images.", size=12, color=ft.Colors.GREY_600),
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_600),
+                        title=ft.Text("Manage Categories", weight=ft.FontWeight.W_500),
+                        subtitle=ft.Text("Add, edit, or remove item categories"),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                        on_click=lambda _: go("manage_categories")
+                    ),
+                ]
+            )
+        )
+    )
+
+    # --- Card 2: Materials & Pricing ---
+    pricing_card = ft.Card(
+        content=ft.Container(
+            padding=20,
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Text("Materials & Pricing", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Manage costing defaults and raw material rates.", size=12, color=ft.Colors.GREY_600),
+                    ft.Row([
+                        ft.TextField(
+                            label="Default Margin %",
+                            keyboard_type=ft.KeyboardType.NUMBER,
+                            value=str(db.get_default_margin()),
+                            width=160,
+                            hint_text="e.g. 30"
+                        ),
+                        ft.FilledButton(
+                            "💾 Save Margin",
+                            on_click=lambda e: _save_margin(e)
+                        )
+                    ]),
+                    ft.Divider(height=20),
+                    ft.Text("Material Master", size=16, weight=ft.FontWeight.W_600),
+                    ft.Text("Set rates here. Used in Cost Calculator.", size=11, color=ft.Colors.GREY_600),
                     ft.Row([
                         new_mat_name,
                         new_mat_rate,
@@ -148,6 +137,45 @@ def view_settings(page: ft.Page):
         )
     )
 
+    # --- Card 3: Data & Sync ---
+    sync_card = ft.Card(
+        content=ft.Container(
+            padding=20,
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Text("Data & Sync", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Sync catalogue, orders, images and offline data.", size=12, color=ft.Colors.GREY_600),
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.SYNC, color=ft.Colors.GREEN_600),
+                        title=ft.Text("Offline Sync", weight=ft.FontWeight.W_500),
+                        subtitle=ft.Text("Sync local data to Supabase cloud"),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                        on_click=lambda _: go("sync_page")
+                    ),
+                ]
+            )
+        )
+    )
+
+    # --- Card 4: Account ---
+    account_card = ft.Card(
+        content=ft.Container(
+            padding=20,
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Text("Account", size=18, weight=ft.FontWeight.BOLD),
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
+                        title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),
+                        on_click=logout
+                    ),
+                ]
+            )
+        )
+    )
+
     refresh_materials()
 
     return ft.ListView(
@@ -155,8 +183,10 @@ def view_settings(page: ft.Page):
         padding=20,
         spacing=20,
         controls=[
-            settings_card,
-            materials_card
+            catalogue_card,
+            pricing_card,
+            sync_card,
+            account_card,
         ]
     )
 

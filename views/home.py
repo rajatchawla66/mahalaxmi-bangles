@@ -86,7 +86,7 @@ def view_home(page: ft.Page):
             def make_delete_handler(oid):
                 def _h(_):
                     def close_dlg(e):
-                        page.pop_dialog()
+                        dlg.open = False
                         page.update()
                     def confirm_delete(e):
                         import db
@@ -99,7 +99,7 @@ def view_home(page: ft.Page):
                                 if current_id != oid:
                                     new_cache.append(o)
                             state["orders_cache"] = new_cache
-                        page.pop_dialog()
+                        dlg.open = False
                         _cards_column.controls = _build_order_cards(state.get("orders_cache", []))
                         page.update()
                     dlg = ft.AlertDialog(

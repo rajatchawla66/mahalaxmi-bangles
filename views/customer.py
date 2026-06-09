@@ -82,7 +82,8 @@ def view_customer_dashboard(page: ft.Page):
     # --- Data Loading Strategy: Fetch Once ---
     if state.get("customer_full_catalogue") is None:
         if cache.is_cache_available():
-            state["customer_full_catalogue"] = cache.get_cached_catalog()
+            raw = cache.get_cached_catalog()
+            state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1)]
             state["customer_categories"] = cache.get_cached_categories()
         else:
             state["customer_full_catalogue"] = db.get_customer_catalogue()

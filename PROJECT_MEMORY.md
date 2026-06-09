@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.14 (build 31)
+- **Latest version:** v1.0.15 (build 32)
 
 ---
 
@@ -431,6 +431,18 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-017: Costing Detail RangeError 12 — invisible ListView child causes index mismatch
+| Field | Detail |
+|-------|--------|
+| **Date** | June 9, 2026 |
+| **Symptom** | Admin → Costing → tap item: costing detail opens with all fields visible, but bottom shows infinite grey scroll. Console repeatedly prints `RangeError (length): Invalid value: Not in inclusive range 0..11: 12`. |
+| **Root Cause** | `custom_margin_row` is a direct child of `ft.ListView` with `visible=False`. Flet's ListView builder computes `itemCount` from total children (13) but filters invisible controls when building visible widgets (12). When Flutter tries to build child index 12 (the Save button), the visible array only has 12 elements (0-11), throwing RangeError. |
+| **Fix** | Wrapped the entire bottom section (Divider, margin text, switch, custom_margin_row, sp_preview, Save button) into a `ft.Column`. Now `custom_margin_row` is nested 1 level deep — the ListView's direct child is the Column (always visible), so the child count stays consistent. |
+| **Files** | `views/pricing.py:751` |
+| **Lesson** | Never put a `visible=False` control directly inside a `ft.ListView`. Wrap invisible controls in a `ft.Column` or `ft.Container` first. |
+
+---
+
 ## 8. FEATURES STATUS
 
 ### ✅ Working
@@ -453,6 +465,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Edit item no longer creates duplicate (BUG-016) — `item_tf.read_only=True` during edit locks item number.
 - Admin Settings UI organized — 4 grouped cards (Catalogue & Categories, Materials & Pricing, Data & Sync, Account) with section titles and subtitles. No logic changes.
 - Dead Cloudinary price-card code removed — deleted `generate_price_card_url()`, `update_item_card_path()`, and `CLOUDINARY_*` constants from `db.py`. Steps A+B only.
+- Costing Detail RangeError 12 (BUG-017) — wrapped bottom section in `ft.Column` so `visible=False` on custom margin row doesn't corrupt ListView child count.
+- Item Visibility Toggle — Hide/Show button in Admin Catalogue cards; customer cache filters `is_available=true` at load time.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -570,6 +584,7 @@ chcp 65001
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
 | June 9, 2026 | Fixed RangeError 12 in Costing Detail: wrapped bottom section (margin, SP preview, save button) in a Column so `visible=False` on custom_margin_row doesn't corrupt ListView child count. Root cause: Flet ListView builder miscounts visible children when a direct child has `visible=False`. | views/pricing.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.14 (build 31) |
+| June 9, 2026 | Item Visibility Toggle: added Hide/Show button to Admin Catalogue cards via `db.set_item_availability()`. Customer catalogue cache now filters `is_available=true` at load time. No schema/DB changes. | views/pricing.py, views/customer.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.15 (build 32) |
 | June 9, 2026 | Dead price-card code cleanup (Step A+B): deleted `generate_price_card_url()`, `CLOUDINARY_*` constants, `update_item_card_path()` from db.py. No view/db changes. | db.py, PROJECT_MEMORY.md | Complete |
 | June 9, 2026 | Admin Settings UI restructured into 4 grouped cards: Catalogue & Categories, Materials & Pricing, Data & Sync, Account. Each with title + subtitle icons. No logic changes. | views/settings.py, PROJECT_MEMORY.md | Complete |
 | June 9, 2026 | BUG-014/015/016 fix round + `page.pop_dialog()` fix in pricing.py and home.py delete confirmations (4 sites). Added rule: update PROJECT_MEMORY.md after every code change. | views/pricing.py, views/home.py, PROJECT_MEMORY.md | Complete — pushed, CI building v1.0.12 (build 8) |

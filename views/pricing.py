@@ -383,6 +383,20 @@ def view_catalogue(page: ft.Page):
                     go("add_item")
                 return _h
 
+            def make_avail_handler(item_number, currently_available):
+                def _h(_):
+                    new_val = not currently_available
+                    db.set_item_availability(item_number, new_val)
+                    if "catalog_cache" in state:
+                        for x in state["catalog_cache"]:
+                            if x["item_number"] == item_number:
+                                x["is_available"] = new_val
+                                break
+                    snack(f"{'✅ Visible' if new_val else '🚫 Hidden'}: {item_number}")
+                    render_catalogue()
+                    page.update()
+                return _h
+
             cards.append(ft.Card(
                 elevation=3,
                 content=ft.Container(
@@ -397,7 +411,8 @@ def view_catalogue(page: ft.Page):
                             ]),
                         ]),
                         ft.Row([
-                            ft.TextButton("✏️ Edit / Regenerate", on_click=make_edit_handler(it)),
+                            ft.TextButton("✏️ Edit", on_click=make_edit_handler(it)),
+                            ft.TextButton("Hide" if not is_unavailable else "Show", on_click=make_avail_handler(it["item_number"], not is_unavailable), style=ft.ButtonStyle(color=ft.Colors.ORANGE_600 if not is_unavailable else ft.Colors.GREEN_600)),
                             ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED_500, on_click=make_delete_handler(it["item_number"])),
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ]),

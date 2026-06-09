@@ -321,7 +321,11 @@ def view_customer_subcategories(page: ft.Page):
         controls=[
             ft.Text(category, size=24, weight="bold"),
             sub_cards[0], # View All
-            *[ft.Row(controls=grid_items[i:i+2], spacing=12) for i in range(0, len(grid_items), 2)],
+            ft.ResponsiveRow(columns={"xs": 1, "sm": 12},
+                controls=[ft.Column([it], col={"xs": 1, "sm": 4}) for it in grid_items],
+                spacing=12,
+                run_spacing=12,
+            )
         ]
     )
 

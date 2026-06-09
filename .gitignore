@@ -11,6 +11,7 @@ __pycache__/
 *.log
 *.db
 *.txt
+!version.txt
 customer_session.json
 ci_runs.json
 .flet/

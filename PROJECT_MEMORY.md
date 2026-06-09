@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.11 (build 7)
+- **Latest version:** v1.0.13 (build 9)
 
 ---
 
@@ -477,8 +477,14 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 1. Wait for build to complete (~15-25 min)
 2. Click the completed workflow run
 3. Scroll to **Artifacts** section
-4. Download `mahalaxmi-bangles-v1.0.11.zip`
+4. Download `mahalaxmi-bangles-v1.0.13.zip`
 5. Extract to get the `.apk` file
+
+### How to bump version
+1. Edit `version.txt` with the new version (e.g., `1.0.14`)
+2. Update `PROJECT_MEMORY.md` sections 1 (Latest version), 9 (Session Log)
+3. Commit message should mention the new version
+4. Push to `main` — CI reads `version.txt` for `--build-version` and uses commit count for `--build-number`
 
 ### CI Environment
 | Component | Version |
@@ -488,7 +494,7 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 | Flet | 0.28.3 |
 | Flutter | 3.24.0 (pinned via `subosito/flutter-action@v2`) |
 | Java | 17 (Temurin) |
-| Signing | Debug keystore cached via `actions/cache@v4` |
+| Signing | Committed `android/debug.keystore` (deterministic, same key every build) |
 
 ### Workflow file
 `.github/workflows/build_apk.yml` — do not modify unless you understand the Flutter native-assets constraint.
@@ -522,7 +528,7 @@ flet run main.py
 git push  # OR go to Actions tab → "Run workflow"
 
 # Download APK:
-# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.11.zip
+# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.13.zip
 
 # Git push (PAT stored in remote URL):
 git push

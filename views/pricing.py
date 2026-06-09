@@ -748,15 +748,17 @@ def view_costing_detail(page: ft.Page):
             ft.OutlinedButton("➕ Add Material", icon=ft.Icons.ADD, on_click=add_listed),
             ft.TextButton("+ Add unlisted material", on_click=add_unlisted),
             total_cost_text,
-            ft.Divider(),
-            ft.Text("📊 Margin & Selling Price", size=15, weight="bold"),
-            ft.Row([
-                ft.Text(f"Use default margin ({default_margin:.0f}%)?", size=14),
-                switch
-            ]),
-            custom_margin_row,
-            sp_preview,
-            ft.FilledButton("💾 Save Costing", icon=ft.Icons.SAVE, height=50, on_click=save_costing)
+            ft.Column([
+                ft.Divider(),
+                ft.Text("📊 Margin & Selling Price", size=15, weight="bold"),
+                ft.Row([
+                    ft.Text(f"Use default margin ({default_margin:.0f}%)?", size=14),
+                    switch
+                ]),
+                custom_margin_row,
+                sp_preview,
+                ft.FilledButton("💾 Save Costing", icon=ft.Icons.SAVE, height=50, on_click=save_costing)
+            ])
         ]
     )
 

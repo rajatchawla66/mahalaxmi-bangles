@@ -465,6 +465,7 @@ def create_order(header: dict, line_items: list) -> int:
         "total_amount": header.get("total_amount", 0),
         "source": header.get("source", "admin"),
         "customer_mobile": header.get("customer_mobile"),
+        "status": "pending",
     }
     result = _post("orders", order_data)
     if not result:
@@ -552,6 +553,12 @@ def get_order_by_id(order_id: int) -> dict | None:
 
 def get_order_items(order_id: int) -> list:
     return _get("order_items", f"order_id=eq.{order_id}")
+
+
+def set_order_status(order_id: int, status: str) -> bool:
+    if status not in ("pending", "confirmed", "cancelled"):
+        return False
+    return _patch("orders", f"order_id=eq.{order_id}", {"status": status})
 
 
 # =============================================================

@@ -83,6 +83,22 @@ def view_home(page: ft.Page):
                     )
                 )
 
+            order_id = order["order_id"]
+            raw_status = order.get("status")
+            status = (raw_status or "pending").lower()
+            status_colors = {
+                "pending": ft.Colors.AMBER_700,
+                "confirmed": ft.Colors.GREEN_700,
+                "cancelled": ft.Colors.RED_600,
+            }
+            status_bg = status_colors.get(status, ft.Colors.GREY_500)
+            status_badge = ft.Container(
+                padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+                bgcolor=status_bg,
+                border_radius=4,
+                content=ft.Text(status.upper(), size=10, color=ft.Colors.WHITE, weight="bold"),
+            )
+
             def make_delete_handler(oid):
                 def _h(_):
                     def close_dlg(e):
@@ -118,9 +134,47 @@ def view_home(page: ft.Page):
                     page.update()
                 return _h
 
+            def make_status_handler(oid, new_status):
+                def _h(_):
+                    import db
+                    db.set_order_status(oid, new_status)
+                    label = new_status.capitalize()
+                    snack(f"{'✅' if new_status == 'confirmed' else '🛑'} Order #{oid} {label}!")
+                    if "orders_cache" in state:
+                        for o in state["orders_cache"]:
+                            current_id = o.get("order", o).get("order_id", o.get("id"))
+                            if current_id == oid:
+                                if isinstance(o, dict) and "order" in o:
+                                    o["order"]["status"] = new_status
+                                else:
+                                    o["status"] = new_status
+                                break
+                    _cards_column.controls = _build_order_cards(state.get("orders_cache", []))
+                    page.update()
+                return _h
+
+            subtitle_controls = [status_badge]
+            if is_admin:
+                subtitle_controls.append(ft.Text(order["customer_name"], size=12, color=ft.Colors.GREY_700))
+            if cat_chips:
+                subtitle_controls.append(ft.Row(cat_chips, spacing=4, wrap=True))
+            if is_admin:
+                subtitle_controls.append(ft.Text(f"₹{order['total_amount']:,.2f}", size=13, weight="bold", color=ft.Colors.INDIGO_700))
+
+            if is_admin and status == "pending":
+                trailing = ft.Row(spacing=0, controls=[
+                    ft.IconButton(ft.Icons.CHECK_CIRCLE, icon_color=ft.Colors.GREEN_700, icon_size=20, tooltip="Confirm", on_click=make_status_handler(order_id, "confirmed")),
+                    ft.IconButton(ft.Icons.CANCEL, icon_color=ft.Colors.RED_600, icon_size=20, tooltip="Cancel", on_click=make_status_handler(order_id, "cancelled")),
+                    ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED_500, icon_size=20, tooltip="Delete", on_click=make_delete_handler(order_id)),
+                ])
+            elif not is_admin:
+                trailing = ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400)
+            else:
+                trailing = None
+
             cards.append(
                 ft.ListTile(
-                    on_click=on_order_tap(order["order_id"]),
+                    on_click=on_order_tap(order_id),
                     bgcolor=ft.Colors.WHITE,
                     leading=ft.Container(
                         width=6, height=50,
@@ -128,19 +182,11 @@ def view_home(page: ft.Page):
                         border_radius=3,
                     ),
                     title=ft.Text(
-                        f"Order #{order['order_id']}  •  {order['order_date']}",
+                        f"Order #{order_id}  •  {order['order_date']}",
                         size=13, weight="bold",
                     ),
-                    subtitle=ft.Column(
-                        spacing=4,
-                        controls=([ft.Text(order["customer_name"], size=12,
-                                          color=ft.Colors.GREY_700)] if is_admin else [])
-                        + ([ft.Row(cat_chips, spacing=4, wrap=True)] if cat_chips else [])
-                        + ([ft.Text(f"₹{order['total_amount']:,.2f}", size=13,
-                                   weight="bold",
-                                   color=ft.Colors.INDIGO_700)] if is_admin else []),
-                    ),
-                    trailing=ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED_500, on_click=make_delete_handler(order["order_id"])) if is_admin else ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400),
+                    subtitle=ft.Column(spacing=4, controls=subtitle_controls),
+                    trailing=trailing,
                 )
             )
         return cards

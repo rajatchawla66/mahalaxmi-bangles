@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.16 (build 33)
+- **Latest version:** v1.0.17 (build 34)
 
 ---
 
@@ -63,7 +63,7 @@
 |-------|-------------|
 | **`categories`** | `id`, `name`, `icon`, `color`, `description`, `sub_categories`, `order_type`, `is_active`, `cover_image_url` |
 | **`rate_list`** | `item_number`, `image_url`, `cost_price`, `selling_price`, `category`, `sub_category`, `has_sizes`, `has_color`, `card_path`, `is_available`, `margin_percent`, `status` |
-| **`orders`** | `order_id`, `customer_name`, `order_date`, `color`, `grind_type`, `box_type`, `packing_structure`, `additional_info`, `total_amount`, `source`, `customer_mobile` |
+| **`orders`** | `order_id`, `customer_name`, `order_date`, `color`, `grind_type`, `box_type`, `packing_structure`, `additional_info`, `total_amount`, `source`, `customer_mobile`, `status` |
 | **`order_items`** | `order_id`, `item_number`, `category`, `qty_2_2/2.4/2.6/2.8/2.10`, `quantity`, `unit`, `color`, `grind_type`, `box_type`, `notes`, `unit_price` |
 | **`materials`** | `id`, `name`, `rate`, `unit`, `category` |
 | **`cost_breakdown`** | `item_number`, `material_id`, `material_name`, `quantity`, `unit`, `rate_per_unit`, `line_total` |
@@ -469,6 +469,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Item Visibility Toggle — Hide/Show button in Admin Catalogue cards; customer cache filters `is_available=true` at load time.
 - Customer Manual Catalogue Refresh — 🔄 icon in customer AppBar on all catalogue screens. Fetches fresh data from Supabase and updates state in-place.
 - Offline Sync UI removed — Sync icon removed from Admin AppBar; Data & Sync card removed from Settings. `view_sync_page()`, route, BACK_MAP, and `cache.py` kept intact as hidden developer fallback.
+- Order Status System (Phase 1) — Admin side: `status` column added to orders table; status badge (pending/confirmed/cancelled) on admin Home cards; Confirm/Cancel actions for pending orders; read-only for confirmed/cancelled. `set_order_status()` in db.py.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -585,6 +586,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | Order Status System (Phase 1 — Admin side): added `status='pending'` to create_order; added `set_order_status()` in db.py with status validation; added status badge + Confirm/Cancel buttons to admin Home order cards; confirmed/cancelled orders read-only; missing/null status treated as pending. Run `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';` in Supabase first. Bump to v1.0.17. | db.py, views/home.py, PROJECT_MEMORY.md, version.txt | Complete |
 | June 9, 2026 | Customer Manual Catalogue Refresh: added 🔄 icon to customer AppBar on all catalogue screens via `_customer_refresh` handler. Removed Offline Sync UI: Data & Sync card from Settings, Sync icon from Admin AppBar. Kept sync_page route/code/cache.py as hidden fallback. Bump to v1.0.16. | main.py, views/settings.py, PROJECT_MEMORY.md, version.txt | Complete |
 | June 9, 2026 | Item Visibility Toggle: added Hide/Show button to Admin Catalogue cards via `db.set_item_availability()`. Customer catalogue cache now filters `is_available=true` at load time. Pushed for CI testing. No schema/DB changes. | views/pricing.py, views/customer.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.15 (build 32) |
 | June 9, 2026 | Fixed RangeError 12 in Costing Detail: wrapped bottom section (margin, SP preview, save button) in a Column so `visible=False` on custom_margin_row doesn't corrupt ListView child count. Root cause: Flet ListView builder miscounts visible children when a direct child has `visible=False`. | views/pricing.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.14 (build 31) |

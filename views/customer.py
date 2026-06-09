@@ -76,9 +76,9 @@ def view_customer_name_entry(page: ft.Page):
 # ============================================================
 
 def view_customer_dashboard(page: ft.Page):
-    """Main customer entry grid showing categories."""
+    """Main customer entry grid showing categories — portrait tiles 2-per-row."""
     state = page.state
-    
+
     # --- Data Loading Strategy: Fetch Once ---
     if state.get("customer_full_catalogue") is None:
         if cache.is_cache_available():
@@ -96,6 +96,13 @@ def view_customer_dashboard(page: ft.Page):
     for it in catalog:
         cat_name = it.get("category", "Uncategorized")
         counts[cat_name] = counts.get(cat_name, 0) + 1
+
+    # Build first-item-image lookup per category (fallback for missing cover)
+    cat_first_image = {}
+    for it in catalog:
+        cname = it.get("category")
+        if cname and it.get("image_url") and cname not in cat_first_image:
+            cat_first_image[cname] = it["image_url"]
 
     # --- Search Handler ---
     def on_search_change(_):
@@ -119,34 +126,25 @@ def view_customer_dashboard(page: ft.Page):
         expand=True,
         suffix=ft.IconButton(ft.Icons.CLEAR, on_click=clear_search)
     )
-    # --- Build Category Cards ---
-    cat_cards = []
+
+    # --- Build Category Tiles (Portrait 3:4, 2 per row) ---
+    sw = page.width or 360
+    tile_w = (sw - 32 - 12) // 2  # 16px padding each side, 12px gap
+    tile_h = int(tile_w * 4 / 3)  # 3:4 portrait ratio
+
+    cat_tiles = []
     for cat in categories:
         cname = cat["name"]
         item_count = counts.get(cname, 0)
-        if item_count == 0: continue # Hide empty categories for customers
+        if item_count == 0:
+            continue
 
-        cover_url = cat.get("cover_image_url")
-        
-        # Determine background
-        bg_content = None
-        if cover_url:
-            bg_content = ft.Image(src=cover_url, fit=ft.ImageFit.COVER, expand=True)
-        else:
-            # Solid gradient fallback
-            bg_content = ft.Container(
-                gradient=ft.LinearGradient(
-                    colors=[ft.Colors.with_opacity(0.1, ft.Colors.BLACK), ft.Colors.with_opacity(0.4, ft.Colors.BLACK)],
-                    begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1)
-                ),
-                expand=True
-            )
+        # Cover image: category cover → first-item image → monogram
+        cover_url = cat.get("cover_image_url") or cat_first_image.get(cname)
 
         def on_cat_click(e, c=cat):
             state["customer_selected_category"] = c["name"]
             state["customer_selected_subcategory"] = None
-            
-            # Check for subcategories
             subs_str = c.get("sub_categories", "").strip()
             if subs_str:
                 state["customer_subcategories"] = [s.strip() for s in subs_str.split(",") if s.strip()]
@@ -155,52 +153,71 @@ def view_customer_dashboard(page: ft.Page):
                 state["customer_subcategories"] = []
                 page.go("customer_items")
 
-        card = ft.Container(
+        if cover_url:
+            bg = ft.Image(src=cover_url, fit=ft.ImageFit.COVER, expand=True)
+        else:
+            initial = cname[0].upper() if cname else "?"
+            bg = ft.Container(
+                gradient=ft.LinearGradient(
+                    colors=[ft.Colors.INDIGO_50, ft.Colors.INDIGO_100],
+                    begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1)
+                ),
+                expand=True,
+                alignment=ft.alignment.center,
+                content=ft.Text(initial, size=44, weight=ft.FontWeight.W_200, color=ft.Colors.INDIGO_300),
+            )
+
+        tile = ft.Container(
             on_click=on_cat_click,
+            width=tile_w,
+            height=tile_h,
             border_radius=16,
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            height=160,
+            border=ft.border.all(1, ft.Colors.GREY_200),
             content=ft.Stack([
-                # Background content (direct positioning)
-                ft.Container(content=bg_content, left=0, top=0, right=0, bottom=0),
-                # Dark overlay for text readability (direct positioning)
+                ft.Container(content=bg, left=0, top=0, right=0, bottom=0),
                 ft.Container(
                     left=0, top=0, right=0, bottom=0,
                     gradient=ft.LinearGradient(
                         colors=[ft.Colors.TRANSPARENT, ft.Colors.with_opacity(0.87, ft.Colors.BLACK)],
-                        begin=ft.Alignment(0, 0), end=ft.Alignment(0, 1)
-                    )
+                        begin=ft.Alignment(0, 0.35), end=ft.Alignment(0, 1),
+                    ),
                 ),
                 ft.Container(
-                    padding=12,
-                    alignment=ft.alignment.bottom_left,
+                    padding=10, alignment=ft.alignment.bottom_left,
                     content=ft.Column([
-                        ft.Text(cname, size=16, weight="bold", color=ft.Colors.WHITE),
-                        ft.Text(f"{item_count} items", size=11, color=ft.Colors.with_opacity(0.7, ft.Colors.WHITE)),
-                    ], spacing=2, tight=True)
-                )
-            ])
+                        ft.Text(cname, size=14, weight="bold", color=ft.Colors.WHITE),
+                    ], spacing=0, tight=True),
+                ),
+                ft.Container(
+                    padding=ft.Padding(7, 2, 7, 2),
+                    bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE),
+                    border_radius=10,
+                    top=8, right=8,
+                    content=ft.Text(f"{item_count}", size=11,
+                                    weight=ft.FontWeight.W_600, color=ft.Colors.GREY_800),
+                ),
+            ]),
         )
-        cat_cards.append(card)
+        cat_tiles.append(tile)
 
-    # --- Layout ---
-    view = ft.ListView(
-        expand=True,
-        padding=16,
-        spacing=20,
+    # --- Layout: manual rows of 2 (no ResponsiveRow) ---
+    rows = []
+    for i in range(0, len(cat_tiles), 2):
+        pair = cat_tiles[i:i+2]
+        rows.append(ft.Row(controls=pair, spacing=12))
+
+    return ft.ListView(
+        expand=True, padding=16, spacing=20,
         controls=[
             ft.Text(f"Namaste, {state['username']}!", size=18, weight=ft.FontWeight.W_500),
-            ft.Row([search_tf, ft.IconButton(ft.Icons.ARROW_FORWARD, on_click=lambda _: on_search_change(None))], spacing=10),
+            ft.Row([search_tf, ft.IconButton(ft.Icons.ARROW_FORWARD,
+                     on_click=lambda _: on_search_change(None))], spacing=10),
             ft.Text("Browse Categories", size=20, weight="bold"),
-            ft.ResponsiveRow(columns={"xs": 1, "sm": 12},
-                controls=[ft.Column([c], col={"xs": 1, "sm": 4}) for c in cat_cards],
-                spacing=12,
-                run_spacing=12,
-            ),
-            ft.Container(height=40)
-        ]
+            *rows,
+            ft.Container(height=40),
+        ],
     )
-    return view
 
 # ============================================================
 # SUBCATEGORY GRID
@@ -313,132 +330,124 @@ def view_customer_subcategories(page: ft.Page):
     )
 
 # ============================================================
-# ITEM GRID
+# SHARED ITEM CARD BUILDER
+# ============================================================
+
+def _build_item_card(item, on_view_details):
+    """Build a one-column product card (shared by items grid and search)."""
+    img_url = item.get("image_url")
+
+    if img_url:
+        img = ft.Container(
+            width=110, height=110,
+            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            border_radius=8,
+            content=ft.Image(
+                src=img_url, width=110, height=110, fit=ft.ImageFit.COVER,
+                error_content=ft.Container(
+                    width=110, height=110, bgcolor=ft.Colors.GREY_100,
+                    alignment=ft.alignment.center,
+                    content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=24),
+                ),
+            ),
+        )
+    else:
+        img = ft.Container(
+            width=110, height=110, bgcolor=ft.Colors.GREY_100,
+            border_radius=8, alignment=ft.alignment.center,
+            content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=24),
+        )
+
+    badges = []
+    if bool(item.get("has_sizes", 0)):
+        badges.append(ft.Container(
+            padding=ft.Padding(5, 1, 5, 1),
+            bgcolor=ft.Colors.AMBER_50, border_radius=3,
+            content=ft.Text("Multiple Sizes", size=9, color=ft.Colors.AMBER_800, weight=ft.FontWeight.W_500),
+        ))
+    if bool(item.get("has_color", 0)):
+        badges.append(ft.Container(
+            padding=ft.Padding(5, 1, 5, 1),
+            bgcolor=ft.Colors.PURPLE_50, border_radius=3,
+            content=ft.Text("Colors Available", size=9, color=ft.Colors.PURPLE_700, weight=ft.FontWeight.W_500),
+        ))
+
+    return ft.Container(
+        border_radius=12, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        padding=10,
+        content=ft.Row([
+            img,
+            ft.Column([
+                ft.Text(item.get("item_number", ""), size=11, color=ft.Colors.GREY_400),
+                ft.Text(f"₹{item.get('selling_price', 0)}", size=20,
+                        color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_700),
+                ft.Row(badges, spacing=4) if badges else ft.Container(height=0),
+                ft.FilledButton(
+                    "View Details",
+                    on_click=on_view_details,
+                    height=32,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        bgcolor=ft.Colors.BLUE_900,
+                        color=ft.Colors.WHITE,
+                    ),
+                ),
+            ], spacing=4, expand=True),
+        ], alignment=ft.MainAxisAlignment.START, spacing=12),
+    )
+
+
+# ============================================================
+# ITEM GRID (One-Column Redesign)
 # ============================================================
 
 def view_customer_items(page: ft.Page):
     state = page.state
+    catalog = state.get("customer_full_catalogue", [])
     category = state.get("customer_selected_category")
     subcategory = state.get("customer_selected_subcategory")
-    catalog = state.get("customer_full_catalogue", [])
 
     if not category:
         page.go("customer_dashboard")
         return ft.Container()
 
-    # Filter items locally
     items = []
     for it in catalog:
         if it.get("category") == category:
             if not subcategory or it.get("sub_category") == subcategory:
                 items.append(it)
 
-    # --- Item Card Builder ---
     item_cards = []
     for it in items:
-        img_url = it.get("image_url")
-        item_no = it.get("item_number", "—")
-        price = it.get("selling_price", 0)
-
-        def on_item_click(e, item=it):
+        def on_details(e, item=it):
             state["customer_selected_item"] = item
             page.go("item_detail")
+        item_cards.append(_build_item_card(it, on_details))
 
-        def on_quick_add(e, item=it):
-            # Check if item needs selection
-            if bool(item.get("has_sizes", 0)) or bool(item.get("has_color", 0)):
-                state["customer_selected_item"] = item
-                page.go("item_detail")
-            else:
-                # Add directly
-                cart_item = {
-                    'item_number': item.get('item_number'),
-                    'category': item.get('category'),
-                    'unit_price': item.get('selling_price', 0),
-                    'quantity': 1
-                }
-                state.setdefault('customer_cart', []).append(cart_item)
-                page.snack(f"✅ {item_no} added to cart")
-                page.app_render() # Update UI (cart icon)
-
-        card = ft.Container(
-            on_click=on_item_click,
-            border_radius=12,
-            bgcolor=ft.Colors.WHITE,
-            border=ft.border.all(1, ft.Colors.GREY_200),
-            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            content=ft.Column(spacing=0, controls=[
-                ft.Image(
-                    src=img_url if img_url else "",
-                    height=160,
-                    fit=ft.ImageFit.COVER,
-                    error_content=ft.Container(
-                        height=160, bgcolor=ft.Colors.GREY_100,
-                        content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400)
-                    )
-                ),
-                ft.Container(
-                    padding=10,
-                    content=ft.Column([
-                        ft.Text(item_no, weight="bold", size=13, overflow=ft.TextOverflow.ELLIPSIS),
-                        ft.Row([
-                            ft.Text(f"₹{price}", color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_600, size=13, expand=True),
-                            ft.IconButton(ft.Icons.ADD_SHOPPING_CART, icon_size=18, icon_color=ft.Colors.INDIGO_600, 
-                                          on_click=on_quick_add, padding=0)
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-                    ], spacing=2)
-                )
-            ])
-        )
-        item_cards.append(card)
-
-    breadcrumb = category
-    if subcategory:
-        breadcrumb += f" > {subcategory}"
-
-    return ft.Column(
+    return ft.ListView(
         expand=True,
-        controls=[
+        padding=16,
+        spacing=12,
+        controls=item_cards if item_cards else [
             ft.Container(
-                padding=ft.Padding(16, 16, 16, 8),
-                content=ft.Row([
-                    ft.Icon(ft.Icons.HOME_ROUNDED, size=16, color=ft.Colors.GREY_600),
-                    ft.Text(breadcrumb, size=13, color=ft.Colors.GREY_600, weight=ft.FontWeight.W_500)
-                ], spacing=8)
+                expand=True, padding=40, alignment=ft.alignment.center,
+                content=ft.Text("No items found", color=ft.Colors.GREY_500),
             ),
-            ft.GridView(
-                expand=True,
-                padding=12,
-                runs_count=2,
-                max_extent=200,
-                child_aspect_ratio=0.72,
-                spacing=10,
-                run_spacing=10,
-                controls=[ft.Column([c]) for c in item_cards]
-            )
-        ]
+        ],
     )
 
+
 # ============================================================
-# SEARCH RESULTS
+# SEARCH RESULTS (Reuses same card style)
 # ============================================================
 
 def view_customer_search(page: ft.Page):
     state = page.state
     catalog = state.get("customer_full_catalogue", [])
-    
-    # Results Grid (placeholder)
-    results_grid = ft.GridView(
-        expand=True,
-        padding=12,
-        runs_count=2,
-        max_extent=200,
-        child_aspect_ratio=0.72,
-        spacing=10,
-        run_spacing=10,
-    )
 
     results_header = ft.Text(size=15, weight="bold")
+    results_list = ft.ListView(expand=True, padding=16, spacing=12)
 
     def update_results(query: str):
         query = query.lower().strip()
@@ -446,66 +455,28 @@ def view_customer_search(page: ft.Page):
             page.go("customer_dashboard")
             return
 
-        filtered = [i for i in catalog if 
-            query in (i.get("item_number") or "").lower() or 
-            query in (i.get("category") or "").lower() or 
+        filtered = [i for i in catalog if
+            query in (i.get("item_number") or "").lower() or
+            query in (i.get("category") or "").lower() or
             query in (i.get("sub_category") or "").lower()]
 
-        item_cards = []
+        cards = []
         for it in filtered:
-            img_url = it.get("image_url")
-            item_no = it.get("item_number", "—")
-            price = it.get("selling_price", 0)
-            cat_name = it.get("category", "")
-
-            def on_item_click(e, item=it):
+            def on_details(e, item=it):
                 state["customer_selected_item"] = item
                 page.go("item_detail")
-
-            card = ft.Container(
-                on_click=on_item_click,
-                border_radius=12,
-                bgcolor=ft.Colors.WHITE,
-                border=ft.border.all(1, ft.Colors.GREY_200),
-                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-                content=ft.Column(spacing=0, controls=[
-                    ft.Image(
-                        src=img_url if img_url else "",
-                        height=150,
-                        fit=ft.ImageFit.COVER,
-                        error_content=ft.Container(
-                            height=150, bgcolor=ft.Colors.GREY_100,
-                            content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400)
-                        )
-                    ),
-                    ft.Container(
-                        padding=10,
-                        content=ft.Column([
-                            ft.Text(item_no, weight="bold", size=13, overflow=ft.TextOverflow.ELLIPSIS),
-                            ft.Row([
-                                ft.Text(f"₹{price}", color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_600, size=13),
-                                ft.Text(cat_name, size=10, color=ft.Colors.GREY_500, italic=True, expand=True, text_align=ft.TextAlign.RIGHT)
-                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-                        ], spacing=2)
-                    )
-                ])
-            )
-            item_cards.append(ft.Column([card]))
+            cards.append(_build_item_card(it, on_details))
 
         results_header.value = f"Results for '{query}' ({len(filtered)})"
-        results_grid.controls = item_cards
-        
-        # If no results, show empty state
-        if not filtered:
-            results_grid.controls = [
-                ft.Container(
-                    expand=True, padding=40, alignment=ft.alignment.center,
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.SEARCH_OFF, size=60, color=ft.Colors.GREY_300),
-                        ft.Text(f"No results for '{query}'", color=ft.Colors.GREY_600),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10)
-                )
-            ]
+        results_list.controls = cards if cards else [
+            ft.Container(
+                expand=True, padding=40, alignment=ft.alignment.center,
+                content=ft.Column([
+                    ft.Icon(ft.Icons.SEARCH_OFF, size=60, color=ft.Colors.GREY_300),
+                    ft.Text(f"No results for '{query}'", color=ft.Colors.GREY_600),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            ),
+        ]
         page.update()
 
     def on_search_change(e):
@@ -520,26 +491,19 @@ def view_customer_search(page: ft.Page):
         height=48,
         on_change=on_search_change,
         expand=True,
-        autofocus=True, # Keep focus when navigating here
-        suffix=ft.IconButton(ft.Icons.CLEAR, on_click=lambda _: update_results(""))
+        autofocus=True,
+        suffix=ft.IconButton(ft.Icons.CLEAR, on_click=lambda _: update_results("")),
     )
 
-    # Initial load
     update_results(state.get("customer_search_query", ""))
 
     return ft.Column(
         expand=True,
         controls=[
-            ft.Container(
-                padding=16,
-                content=ft.Row([search_tf], spacing=10)
-            ),
-            ft.Container(
-                padding=ft.Padding(16, 0, 16, 8),
-                content=results_header
-            ),
-            results_grid
-        ]
+            ft.Container(padding=16, content=ft.Row([search_tf], spacing=10)),
+            ft.Container(padding=ft.Padding(16, 0, 16, 8), content=results_header),
+            results_list,
+        ],
     )
 
 # ============================================================

@@ -21,7 +21,6 @@ def view_customer_pin_login(page: ft.Page):
         max_length=8,
         prefix_icon=ft.Icons.LOCK,
         text_align=ft.TextAlign.CENTER,
-        font_family="monospace",
         border_radius=12,
         on_submit=lambda _: do_login(),
     )

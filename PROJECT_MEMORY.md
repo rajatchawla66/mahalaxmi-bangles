@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.9 (build 5)
+- **Latest version:** v1.0.11 (build 7)
 
 ---
 
@@ -417,6 +417,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Consistent APK Signing (committed debug keystore at android/debug.keystore — no more uninstall/reinstall)
 - Karigar Slip PDF Share — generates styled PDF (maroon/gold card layout, image thumbnails, sizes boxes, multi-page), uploads to Supabase Storage with `x-upsert`, opens WhatsApp with public link. Direct local PDF attachment via WhatsApp not supported in current Flet setup.
 - Customer Item Detail UI — premium B2B catalogue layout: rounded image card, product info card (item# + category badge + price), compact +/- quantity stepper rows replacing oversized TextFields, live order summary card, sticky bottom CTA bar with qty preview.
+- Customer Dashboard Phase 3 — portrait category tiles (3:4 ratio, 2-per-row), cascading image fallback (cover → first item → monogram), no ResponsiveRow/wrap.
+- Admin Navigation Restructure — nested Items tab (Add/Edit + Catalogue ft.Tabs) replaced with two standalone NavBar destinations: Add Item and Catalogue. 5-tab NavBar: Home, Add Item, Catalogue, Costing, Settings.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -441,7 +443,7 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 1. Wait for build to complete (~15-25 min)
 2. Click the completed workflow run
 3. Scroll to **Artifacts** section
-4. Download `mahalaxmi-bangles-v1.0.9.zip`
+4. Download `mahalaxmi-bangles-v1.0.11.zip`
 5. Extract to get the `.apk` file
 
 ### CI Environment
@@ -486,7 +488,7 @@ flet run main.py
 git push  # OR go to Actions tab → "Run workflow"
 
 # Download APK:
-# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.9.zip
+# Actions → latest run → Artifacts → mahalaxmi-bangles-v1.0.11.zip
 
 # Git push (PAT stored in remote URL):
 git push
@@ -526,6 +528,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 9, 2026 | Admin Nav Restructure: replaced nested Items tab (ft.Tabs with Add/Edit + Catalogue) with two standalone NavBar destinations. Created `view_add_item()` and `view_catalogue()`, removed `view_rate_list()`. Edit-from-catalogue uses `state["edit_item"]` + navigation to `"add_item"`. 5-tab NavBar: Home, Add Item, Catalogue, Costing, Settings. | views/pricing.py, main.py, PROJECT_MEMORY.md | Complete |
+| June 8, 2026 | Customer Dashboard Phase 3: redesigned category tiles to portrait 3:4 ratio, 2-per-row manual layout (no ResponsiveRow), cascading image fallback (cover → first item image → monogram). Removed item grid filter chip row. Bumped to v1.0.10 (build 6). | views/customer.py, PROJECT_MEMORY.md | Complete — pushed, CI building |
 | June 8, 2026 | BUG-011 fix v2: replaced unreliable actions/cache with committed deterministic debug keystore. Added `android/debug.keystore`, updated CI to copy it before build. Cleaned scratch/diagnostic files. Updated pyproject.toml exclusions. Bumped to v1.0.9 (build 5). | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new), `.gitignore`, `pyproject.toml`, `PROJECT_MEMORY.md` | Complete |
 | June 8, 2026 | FilePicker fix: replaced `await file_picker.pick_files(...)` (sync method returning None) with callback-based `on_result` pattern across 3 flows (pricing.py item upload, settings.py new/existing cover upload). | views/pricing.py, views/settings.py | Complete — Verified on device |
 | June 8, 2026 | Dead price-card code cleanup (Phase 1+3): deleted card_generator.py (170 lines), assets/logo.png, removed dead imports/routes, removed card_preview grey 300x300 Container, card_thumb, 🎨 badge, Cloudinary card generation from save/edit/costing flows. DB compatibility stubs left intact. | card_generator.py (del), assets/logo.png (del), main.py, views/pricing.py | Complete |

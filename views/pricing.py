@@ -7,13 +7,12 @@ from pathlib import Path
 import cache
 from utils import *
 
-def view_rate_list(page: ft.Page):
+def view_add_item(page: ft.Page):
     state = page.state
     go = page.go
     go_back = page.go_back
     snack = page.snack
     logout = page.logout
-    # End context injection
 
     picked_path = {"value": ""}
     editing_existing = {"flag": False}
@@ -49,7 +48,7 @@ def view_rate_list(page: ft.Page):
     def take_photo(_):
         file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
 
-    # ---- Controls for Tab A ----
+    # ---- Form Controls ----
     mode_text = ft.Text("🆕 New item", color=ft.Colors.GREEN_600, size=13)
     item_tf = ft.TextField(label="Item Number *", hint_text="e.g., CH-786")
 
@@ -59,7 +58,6 @@ def view_rate_list(page: ft.Page):
         value=None,
         expand=True,
     )
-    # Build sub-category options dynamically
     _, _subs = _load_categories_from_db()
     _all_sub_options = []
     for subs_list in _subs.values():
@@ -93,7 +91,6 @@ def view_rate_list(page: ft.Page):
         label="Available for orders", value=True, visible=False,
     )
 
-    # Item property toggles
     has_sizes_switch = ft.Switch(label="Has sizes (2.2–2.10)?", value=False)
     has_color_switch = ft.Switch(label="Has color?", value=False)
 
@@ -102,18 +99,17 @@ def view_rate_list(page: ft.Page):
         if item_no and editing_existing["flag"]:
             db.set_item_availability(item_no, availability_switch.value)
             snack(f"{'✅ Available' if availability_switch.value else '🚫 Unavailable'}: {item_no}")
-            render_catalogue()
             page.update()
 
     availability_switch.on_change = _on_availability_toggle
 
-    # Price fields removed from creation UI
     preview_img = ft.Container(
         width=120, height=120,
         bgcolor=ft.Colors.GREY_200, border_radius=8,
         alignment=ft.alignment.center,
         content=ft.Text("No image", color=ft.Colors.GREY_600),
     )
+
     # ---- Item lookup on keystroke ----
     def on_item_lookup(_e):
         item_no = (item_tf.value or "").strip()
@@ -134,7 +130,6 @@ def view_rate_list(page: ft.Page):
             mode_text.value = "✏️ Editing existing item"
             mode_text.color = ft.Colors.BLUE_600
             category_dd.value = existing.get("category") or None
-            # Show sub-category dropdown if this category has sub-categories
             _, _dynamic_subs = _load_categories_from_db()
             existing_cat = existing.get("category", "")
             if existing_cat in _dynamic_subs and _dynamic_subs[existing_cat]:
@@ -167,6 +162,13 @@ def view_rate_list(page: ft.Page):
 
     item_tf.on_change = on_item_lookup
 
+    # ---- Pre-fill from catalogue edit ----
+    edit_item = state.get("edit_item")
+    if edit_item:
+        item_tf.value = edit_item.get("item_number", "")
+        on_item_lookup(None)
+        state.pop("edit_item", None)
+
     # ---- Save Item ---
     def on_save_and_generate(_):
         item_no = (item_tf.value or "").strip()
@@ -191,11 +193,9 @@ def view_rate_list(page: ft.Page):
         sp_val = existing["selling_price"] if existing else 0.0
         cp_val = existing["cost_price"] if existing else 0.0
 
-        # Resolve image — optional, upload if provided
         final_image_url = ""
         src = picked_path.get("value", "")
         if src and os.path.exists(src):
-            # Upload to cloud and get public URL
             snack("Uploading image...", ft.Colors.BLUE_400)
             uploaded_url = db.upload_image(src, item_no)
             if uploaded_url:
@@ -211,9 +211,7 @@ def view_rate_list(page: ft.Page):
             picked_path["value"] = ""
         elif existing and existing.get("image_url"):
             final_image_url = existing["image_url"]
-        # No image is OK — don't block save
 
-        # Save/update item in DB
         if existing:
             db.update_item_prices(item_no, cp_val, sp_val)
             db.update_item_image_and_card(item_no, final_image_url, "")
@@ -229,7 +227,6 @@ def view_rate_list(page: ft.Page):
         snack("✅ Item saved!")
         if "catalog_cache" in state:
             del state["catalog_cache"]
-        render_catalogue()
 
         # Reset all form fields for the next item
         item_tf.value = ""
@@ -246,46 +243,7 @@ def view_rate_list(page: ft.Page):
 
         page.update()
 
-    def _safe_launch_url(page, url: str):
-        """Helper to launch URLs safely across Flet versions."""
-        import asyncio
-        import inspect
-        import webbrowser
-    
-        async def _do_launch():
-            try:
-                await page.launch_url(url)
-            except Exception:
-                pass
-            
-        # 1. Try modern Flet way (if it's a coroutine function)
-        try:
-            if inspect.iscoroutinefunction(page.launch_url):
-                page.run_task(_do_launch)
-                return
-        except Exception:
-            pass
-
-        # 2. Fallback: call directly
-        try:
-            res = page.launch_url(url)
-            if inspect.iscoroutine(res) or asyncio.iscoroutine(res):
-                # If it returned a coroutine object, schedule an async task to await it
-                async def _await_res():
-                    await res
-                page.run_task(_await_res)
-                return
-        except Exception:
-            pass
-        
-        # 3. Absolute fallback
-        try:
-            webbrowser.open(url)
-        except Exception:
-            pass
-
-    # ---- Tab A layout ----
-    tab_a_content = ft.Column(
+    return ft.Column(
         scroll=ft.ScrollMode.AUTO,
         spacing=10,
         controls=[
@@ -317,35 +275,34 @@ def view_rate_list(page: ft.Page):
         ],
     )
 
-    # ---- Tab B: Catalogue ----
+
+def view_catalogue(page: ft.Page):
+    state = page.state
+    go = page.go
+    snack = page.snack
+
     catalogue_list = ft.Column(spacing=10)
 
     def render_catalogue():
-        # --- CACHE OPTIMIZATION: Try local cache first ---
         cached_items = cache.get_cached_catalog()
         items = state.get("catalog_cache", cached_items)
 
         def fetch_latest_catalog():
-            """Background fetch to refresh catalog cache and UI."""
             try:
                 latest = db.get_all_items_with_cards(raise_errors=True)
                 state["catalog_cache"] = latest
-                # Update cache file too
                 import json
                 import time
                 cats = db.get_categories(active_only=False)
                 catalog_data = {"items": latest, "categories": cats, "synced_at": time.time()}
                 with open(cache._catalog_path(), "w", encoding="utf-8") as f:
                     json.dump(catalog_data, f, ensure_ascii=False)
-                
-                # Refresh UI if we are still on rate_list
-                if state["current_page"] == "rate_list":
+                if state["current_page"] in ("rate_list", "catalogue"):
                     render_catalogue()
                     page.update()
             except Exception:
                 pass
 
-        # If first time viewing catalog this session, fetch fresh in background
         if "catalog_cache" not in state:
             import threading
             threading.Thread(target=fetch_latest_catalog, daemon=True).start()
@@ -358,6 +315,7 @@ def view_rate_list(page: ft.Page):
                 )
             ]
             return
+
         cards = []
         for it in items:
             is_unavailable = not bool(it.get("is_available", 1))
@@ -387,7 +345,6 @@ def view_rate_list(page: ft.Page):
                     bgcolor=ft.Colors.RED_50, border_radius=4,
                     content=ft.Text("Unavailable", size=10, color=ft.Colors.RED_700),
                 ))
-
 
             def make_delete_handler(item_number):
                 def _h(_):
@@ -420,30 +377,8 @@ def view_rate_list(page: ft.Page):
 
             def make_edit_handler(item_data):
                 def _h(_):
-                    item_tf.value = item_data["item_number"]
-                    editing_existing["flag"] = True
-                    mode_text.value = "✏️ Editing existing item"
-                    mode_text.color = ft.Colors.BLUE_600
-                    category_dd.value = item_data.get("category") or None
-                    _, _ed_subs = _load_categories_from_db()
-                    _ed_cat = item_data.get("category", "")
-                    if _ed_cat in _ed_subs and _ed_subs[_ed_cat]:
-                        sub_category_dd.options = [
-                            ft.dropdown.Option(sc) for sc in _ed_subs[_ed_cat]
-                        ]
-                        sub_category_dd.visible = True
-                        sub_category_dd.value = item_data.get("sub_category") or None
-                    else:
-                        sub_category_dd.visible = False
-                        sub_category_dd.value = None
-                    availability_switch.visible = True
-                    availability_switch.value = bool(item_data.get("is_available", 1))
-                    if _is_valid_image(item_data.get("image_url", "")):
-                        preview_img.content = ft.Image(
-                            src=item_data["image_url"], width=120, height=120,
-                            fit=ft.ImageFit.COVER, border_radius=8)
-                    tabs_ctrl.selected_index = 0
-                    page.update()
+                    state["edit_item"] = item_data
+                    go("add_item")
                 return _h
 
             cards.append(ft.Card(
@@ -459,7 +394,6 @@ def view_rate_list(page: ft.Page):
                                 ft.Text(f"Margin: ₹{margin:.0f}", size=11, color=ft.Colors.GREY_700),
                             ]),
                         ]),
-
                         ft.Row([
                             ft.TextButton("✏️ Edit / Regenerate", on_click=make_edit_handler(it)),
                             ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED_500, on_click=make_delete_handler(it["item_number"])),
@@ -471,7 +405,7 @@ def view_rate_list(page: ft.Page):
 
     render_catalogue()
 
-    tab_b_content = ft.Column(
+    return ft.Column(
         scroll=ft.ScrollMode.AUTO,
         spacing=10,
         controls=[
@@ -480,24 +414,6 @@ def view_rate_list(page: ft.Page):
             ft.Container(height=24),
         ],
     )
-
-    # ---- Assemble Tabs ----
-    tabs_ctrl = ft.Tabs(
-        selected_index=0,
-        expand=True,
-        tabs=[
-            ft.Tab(
-                text="➕ Add / Edit",
-                content=tab_a_content,
-            ),
-            ft.Tab(
-                text="🖼️ Catalogue",
-                content=tab_b_content,
-            ),
-        ],
-    )
-
-    return tabs_ctrl
 
 # ============================================================
 # KARIGAR SLIP VIEW (mobile-printable, no customer / no prices)

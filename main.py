@@ -492,6 +492,8 @@ async def main(page: ft.Page):
         "order_form": "home",
         "order_detail": "home",
         "rate_list": "home",
+        "add_item": "home",
+        "catalogue": "home",
         "costing": "home",
         "costing_detail": "costing",
         "price_list": "home",
@@ -693,11 +695,12 @@ async def main(page: ft.Page):
     
         destinations = [
             ft.NavigationBarDestination(icon=ft.Icons.HOME, label="Home"),
-            ft.NavigationBarDestination(icon=ft.Icons.ADD_PHOTO_ALTERNATE, label="Items"),
+            ft.NavigationBarDestination(icon=ft.Icons.ADD_PHOTO_ALTERNATE, label="Add Item"),
+            ft.NavigationBarDestination(icon=ft.Icons.GRID_VIEW, label="Catalogue"),
             ft.NavigationBarDestination(icon=ft.Icons.CALCULATE, label="Costing"),
             ft.NavigationBarDestination(icon=ft.Icons.SETTINGS, label="Settings"),
         ]
-        page_keys = ["home", "rate_list", "costing", "settings"]
+        page_keys = ["home", "add_item", "catalogue", "costing", "settings"]
     
         try:
             selected = page_keys.index(state["current_page"])
@@ -899,8 +902,14 @@ async def main(page: ft.Page):
             appbar = build_app_bar("Order Detail", show_back=True)
             body = v_orders.view_order_detail(page)
         elif cur == "rate_list":
-            appbar = build_app_bar("Rate List", show_back=True)
-            body = v_pricing.view_rate_list(page)
+            appbar = build_app_bar("Catalogue", show_back=True)
+            body = v_pricing.view_catalogue(page)
+        elif cur == "add_item":
+            appbar = build_app_bar("Add Item", show_back=True)
+            body = v_pricing.view_add_item(page)
+        elif cur == "catalogue":
+            appbar = build_app_bar("Catalogue", show_back=True)
+            body = v_pricing.view_catalogue(page)
         elif cur == "costing":
             appbar = build_app_bar("Costing", show_back=True)
             body = v_pricing.view_costing(page)

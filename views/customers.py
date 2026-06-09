@@ -1,5 +1,18 @@
 import flet as ft
 import db
+from datetime import datetime, timezone, timedelta
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def format_ist_datetime(value):
+    if not value:
+        return "Never"
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        dt_ist = dt.astimezone(IST)
+        return dt_ist.strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        return str(value)[:10] if value else "Never"
 
 def view_manage_customers(page: ft.Page):
     state = page.state
@@ -33,16 +46,7 @@ def view_manage_customers(page: ft.Page):
             cid = c["id"]
             is_active = c.get("is_active", True)
             pin = c.get("pin", "????")
-            last_active = c.get("last_active_at", "")
-            if last_active:
-                try:
-                    from datetime import datetime
-                    dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
-                    last_active_str = dt.strftime("%d-%b %H:%M")
-                except Exception:
-                    last_active_str = last_active[:10] if last_active else "Never"
-            else:
-                last_active_str = "Never"
+            last_active_str = format_ist_datetime(c.get("last_active_at"))
 
             status_color = ft.Colors.GREEN_700 if is_active else ft.Colors.RED_600
             status_label = "Active" if is_active else "Blocked"

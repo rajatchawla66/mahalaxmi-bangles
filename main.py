@@ -14,7 +14,7 @@ Project layout:
 """
 
 from __future__ import annotations
-from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer
+from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer, customers as v_customers
 
 import os
 import shutil
@@ -464,6 +464,8 @@ async def main(page: ft.Page):
         "customer_mobile": None,
         "customer_full_catalogue": None,
         "customer_categories": None,
+        "customer_id": None,
+        "customer_shop_name": None,
     }
 
     # --- Persisted Session Check ---
@@ -482,6 +484,8 @@ async def main(page: ft.Page):
             state["role"] = "customer"
             state["username"] = session_data.get("name") or session_data.get("username", "")
             state["customer_mobile"] = session_data.get("mobile", "")
+            state["customer_id"] = session_data.get("customer_id")
+            state["customer_shop_name"] = session_data.get("customer_shop_name")
             state["current_page"] = "customer_dashboard"
 
     # Back navigation map: where each page should go back to
@@ -499,9 +503,11 @@ async def main(page: ft.Page):
         "price_list": "home",
         "settings": "home",
         "manage_categories": "settings",
+        "manage_customers": "settings",
         "karigar_slip": "order_detail",
         "sync_page": "settings",
-        "customer_dashboard": "login",
+        "customer_login": "login",
+        "customer_dashboard": "customer_login",
         "customer_subcategories": "customer_dashboard",
         "customer_items": "customer_dashboard", # Dynamic in go_back
         "customer_search_results": "customer_dashboard",
@@ -642,6 +648,10 @@ async def main(page: ft.Page):
         state["cart"] = []
         state["selected_category"] = None
         state["nav_history"] = []
+        state["customer_id"] = None
+        state["customer_shop_name"] = None
+        state["customer_mobile"] = None
+        state["customer_cart"] = []
         state["current_page"] = "login"
         render()
 
@@ -930,6 +940,9 @@ async def main(page: ft.Page):
         elif cur == "manage_categories":
             appbar = build_app_bar("Manage Categories", show_back=True)
             body = v_settings.view_manage_categories(page)
+        elif cur == "manage_customers":
+            appbar = build_app_bar("Manage Customers", show_back=True)
+            body = v_customers.view_manage_customers(page)
         elif cur == "karigar_slip":
             appbar = build_app_bar("Karigar Slip", show_back=True)
             body = v_orders.view_karigar_slip(page)
@@ -937,9 +950,9 @@ async def main(page: ft.Page):
             appbar = build_app_bar("Sync", show_back=True)
             body = v_settings.view_sync_page(page)
         # Customer Pages
-        elif cur == "customer_name_entry":
-            appbar = build_app_bar("Customer Details", show_back=True)
-            body = v_customer.view_customer_name_entry(page)
+        elif cur == "customer_login":
+            appbar = build_app_bar("Customer Login", show_back=True)
+            body = v_customer.view_customer_pin_login(page)
         elif cur == "customer_dashboard":
             cart_count = len(state.get("customer_cart", []))
             appbar = build_app_bar(state.get("username", "Catalogue"), show_back=False)

@@ -6,52 +6,75 @@ import cache
 from utils import *
 
 # ============================================================
-# CUSTOMER ENTRY
+# CUSTOMER PIN LOGIN
 # ============================================================
 
-def view_customer_name_entry(page: ft.Page):
-    """View for customer to enter their shop name and mobile."""
+def view_customer_pin_login(page: ft.Page):
     state = page.state
-    
-    name_tf = ft.TextField(
-        label="Shop Name *",
-        hint_text="Enter your shop name",
+
+    pin_input = ft.TextField(
+        label="Enter 8-digit PIN",
+        hint_text="PIN provided by shop",
         width=300,
-        autofocus=True
-    )
-    mobile_tf = ft.TextField(
-        label="Mobile Number (Optional)",
-        hint_text="e.g., 9876543210",
-        width=300,
-        keyboard_type=ft.KeyboardType.PHONE
+        autofocus=True,
+        keyboard_type=ft.KeyboardType.NUMBER,
+        max_length=8,
+        prefix_icon=ft.Icons.LOCK,
+        text_align=ft.TextAlign.CENTER,
+        font_family="monospace",
+        border_radius=12,
+        on_submit=lambda _: do_login(),
     )
 
-    async def on_submit(_):
-        if not name_tf.value.strip():
-            page.snack("Shop name is required", ft.Colors.RED_400)
+    error_text = ft.Text("", color=ft.Colors.RED_600, size=13, visible=False)
+
+    def do_login():
+        pin = pin_input.value.strip()
+        if len(pin) != 8 or not pin.isdigit():
+            error_text.value = "Please enter a valid 8-digit PIN"
+            error_text.visible = True
+            page.update()
             return
-        
-        # Save to session state
-        state["role"] = "customer"
-        state["username"] = name_tf.value.strip()
-        state["customer_mobile"] = mobile_tf.value.strip()
-        state["customer_cart"] = [] # Clear/Init customer cart
-        
-        # Save to persistent storage for next app open
-        import json, os
-        session_file = os.path.join(os.environ.get("FLET_APP_STORAGE_DATA", "."), "customer_session.json")
+
         try:
-            with open(session_file, "w") as f:
-                json.dump({
-                    "role": "customer",
-                    "name": state["username"],
-                    "mobile": state["customer_mobile"]
-                }, f)
+            customer = db.get_customer_by_pin(pin)
+        except Exception as e:
+            error_text.value = f"Connection error: {e}"
+            error_text.visible = True
+            page.update()
+            return
+
+        if not customer:
+            error_text.value = "Invalid PIN — customer not found"
+            error_text.visible = True
+            page.update()
+            return
+
+        if not customer.get("is_active", True):
+            error_text.value = "This account has been blocked. Contact the shop."
+            error_text.visible = True
+            page.update()
+            return
+
+        # Success — set session
+        state["role"] = "customer"
+        state["customer_id"] = customer["id"]
+        state["customer_shop_name"] = customer.get("shop_name", "")
+        state["username"] = customer.get("shop_name", "")
+        state["customer_mobile"] = customer.get("mobile", "")
+        state["customer_cart"] = []
+
+        # Update last_active_at
+        try:
+            db.set_customer_last_active(customer["id"])
         except Exception:
             pass
-        
-        page.go("customer_dashboard")
 
+        # Save session
+        import session_helper
+        session_helper.save_session(state)
+
+        page.go("customer_dashboard")
 
     return ft.Container(
         expand=True,
@@ -59,14 +82,14 @@ def view_customer_name_entry(page: ft.Page):
         content=ft.Column(
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
-            spacing=20,
+            spacing=16,
             controls=[
                 ft.Icon(ft.Icons.STORE, size=60, color=ft.Colors.INDIGO_600),
                 ft.Text("Welcome to Mahalaxmi Bangles", size=20, weight="bold"),
-                ft.Text("Please enter your details to browse", color=ft.Colors.GREY_600),
-                name_tf,
-                mobile_tf,
-                ft.FilledButton("Enter Shop", on_click=on_submit, width=200),
+                ft.Text("Enter your shop PIN to continue", color=ft.Colors.GREY_600),
+                pin_input,
+                error_text,
+                ft.FilledButton("Login", on_click=lambda _: do_login(), width=200),
             ]
         )
     )

@@ -15,6 +15,8 @@ def save_session(state):
         "role": state.get("role"),
         "username": state.get("username"),
         "customer_mobile": state.get("customer_mobile"),
+        "customer_id": state.get("customer_id"),
+        "customer_shop_name": state.get("customer_shop_name"),
     }
     parent = os.path.dirname(path)
     if parent:

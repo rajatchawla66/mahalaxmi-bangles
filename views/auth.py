@@ -20,7 +20,7 @@ def view_login(page: ft.Page):
         def _h(_):
             state["role"] = role
             if role == "customer":
-                state["current_page"] = "customer_name_entry"
+                state["current_page"] = "customer_login"
             else:
                 state["username"] = role
                 state["current_page"] = "home"

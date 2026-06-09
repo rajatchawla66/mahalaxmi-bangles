@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.17 (build 34)
+- **Latest version:** v1.0.18 (build 35)
 
 ---
 
@@ -50,7 +50,9 @@
 | `views/orders.py` | Order creation forms, order detail, karigar slip | Low |
 | `views/pricing.py` | Cost calculation, rate lists, margins | Low |
 | `views/settings.py` | Admin settings, category management, sync | Low |
-| `views/customer.py` | Customer catalogue, cart, items, search | Low |
+| `views/customer.py` | Customer PIN login, catalogue, cart, items, search | Low |
+| `views/customers.py` | Admin Manage Customers UI (add/edit/block/PIN mgmt) | Low |
+| `sql/create_customers_table.sql` | SQL schema for customers table | Low |
 | `pyproject.toml` | Flet build config (excludes `product_images`, `build/`, etc.) | **HIGH** — do not touch casually |
 | `.github/workflows/build_apk.yml` | CI workflow — pins Flutter 3.24.0, caches debug keystore | **HIGH** — do not touch casually |
 | `PROJECT_MEMORY.md` | This file — single source of truth | Update after every session |
@@ -61,6 +63,7 @@
 
 | Table | Key Columns |
 |-------|-------------|
+| **`customers`** | `id`, `pin` (unique, 8-digit), `shop_name`, `owner_name`, `mobile`, `city`, `notes`, `is_active`, `created_at`, `last_active_at` |
 | **`categories`** | `id`, `name`, `icon`, `color`, `description`, `sub_categories`, `order_type`, `is_active`, `cover_image_url` |
 | **`rate_list`** | `item_number`, `image_url`, `cost_price`, `selling_price`, `category`, `sub_category`, `has_sizes`, `has_color`, `card_path`, `is_available`, `margin_percent`, `status` |
 | **`orders`** | `order_id`, `customer_name`, `order_date`, `color`, `grind_type`, `box_type`, `packing_structure`, `additional_info`, `total_amount`, `source`, `customer_mobile`, `status` |
@@ -159,7 +162,7 @@ Flutter 3.29.2 ships Dart 3.10+ which enforces `--enable-experiment=native-asset
 Login (Select Dashboard)
   ├── Admin → home
   ├── Labour → home
-  └── Customer → customer_name_entry → customer_dashboard
+  └── Customer → customer_login → customer_dashboard
 
 Forward Navigation (go):
   - Pushes current page to nav_history (stack)
@@ -217,18 +220,20 @@ state = {
     "customer_mobile": None,
     "customer_full_catalogue": None,
     "customer_categories": None,
+    "customer_id": None,
+    "customer_shop_name": None,
 }
 ```
 
 ### Session Persistence
 
 - **File:** `customer_session.json` in `FLET_APP_STORAGE_DATA` or `"."`
-- **Format:** `{"role": "admin"|"labour"|"customer", "username": "...", "customer_mobile": "..."}`
+- **Format:** `{"role": "admin"|"labour"|"customer", "username": "...", "customer_mobile": "...", "customer_id": "...", "customer_shop_name": "..."}`
 - **Helper module:** `session_helper.py` — `save_session(state)`, `load_session()`, `clear_session()`
 - **Backward compatible:** Old customer-only sessions (no `role` field, just `name`/`mobile`) restored as customer
-- **Save triggers:** Admin/labour saved on role pick in `views/auth.py`. Customer saved in `views/customer.py` on name submit.
-- **Restore:** On app start in `main.py` — routes to correct dashboard based on role.
-- **Clear:** On `logout()` — deletes session file, resets state to login.
+- **Save triggers:** Admin/labour saved on role pick in `views/auth.py`. Customer saved in `views/customer.py` on PIN login success.
+- **Restore:** On app start in `main.py` — routes to correct dashboard based on role + loads `customer_id`/`customer_shop_name`.
+- **Clear:** On `logout()` — deletes session file, resets state (including customer_id/shop_name/cart) to login.
 
 ### Exit Dialog
 
@@ -470,6 +475,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Customer Manual Catalogue Refresh — 🔄 icon in customer AppBar on all catalogue screens. Fetches fresh data from Supabase and updates state in-place.
 - Offline Sync UI removed — Sync icon removed from Admin AppBar; Data & Sync card removed from Settings. `view_sync_page()`, route, BACK_MAP, and `cache.py` kept intact as hidden developer fallback.
 - Order Status System (Phase 1) — Admin side: `status` column added to orders table; status badge (pending/confirmed/cancelled) on admin Home cards; Confirm/Cancel actions for pending orders; read-only for confirmed/cancelled. `set_order_status()` in db.py.
+- Customer PIN Login System (Phases 1-3) — Admin Manage Customers page (add/edit/block, copy PIN, search). 8-digit PIN auto-generation with collision retry. Customer PIN login replaces free-text name entry. `customer_id`/`customer_shop_name` in state + session. Session persists PIN login across restarts. `sql/create_customers_table.sql` for Supabase schema.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -586,6 +592,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | Customer PIN Login System (Phases 1-3): db.py — customer CRUD functions (create/get/update/block/last_active) + 8-digit unique PIN auto-generation; views/customers.py (new) — Admin Manage Customers UI (search, add/edit dialog, block/unblock, copy PIN, PIN reveal on creation); views/settings.py — Manage Customers link in Account card; main.py — manage_customers route, customer_login route replaces customer_name_entry, state keys (customer_id, customer_shop_name), BACK_MAP entries, session restore, logout clears customer state; views/auth.py — customer button routes to customer_login; views/customer.py — view_customer_pin_login replaces view_customer_name_entry (8-digit PIN validation, db lookup, active check, session save, last_active_at update); session_helper.py — persists customer_id/customer_shop_name; sql/create_customers_table.sql for Supabase schema. | db.py, views/customers.py (new), views/settings.py, main.py, views/auth.py, views/customer.py, session_helper.py, sql/create_customers_table.sql (new), PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Order Status System (Phase 1 — Admin side): added `status='pending'` to create_order; added `set_order_status()` in db.py with status validation; added status badge + Confirm/Cancel buttons to admin Home order cards; confirmed/cancelled orders read-only; missing/null status treated as pending. Run `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';` in Supabase first. Bump to v1.0.17. | db.py, views/home.py, PROJECT_MEMORY.md, version.txt | Complete |
 | June 9, 2026 | Customer Manual Catalogue Refresh: added 🔄 icon to customer AppBar on all catalogue screens via `_customer_refresh` handler. Removed Offline Sync UI: Data & Sync card from Settings, Sync icon from Admin AppBar. Kept sync_page route/code/cache.py as hidden fallback. Bump to v1.0.16. | main.py, views/settings.py, PROJECT_MEMORY.md, version.txt | Complete |
 | June 9, 2026 | Item Visibility Toggle: added Hide/Show button to Admin Catalogue cards via `db.set_item_availability()`. Customer catalogue cache now filters `is_available=true` at load time. Pushed for CI testing. No schema/DB changes. | views/pricing.py, views/customer.py, PROJECT_MEMORY.md, version.txt | Complete — pushed, CI building v1.0.15 (build 32) |

@@ -770,3 +770,56 @@ def delete_item(item_number: str) -> bool:
 def delete_order(order_id: int) -> bool:
     _delete("order_items", f"order_id=eq.{order_id}")
     return _delete("orders", f"order_id=eq.{order_id}")
+
+
+# =============================================================
+# CUSTOMERS (Admin-Managed PIN Login)
+# =============================================================
+
+import random
+
+def _generate_pin() -> str:
+    return f"{random.randint(0, 99999999):08d}"
+
+def generate_unique_pin() -> str:
+    for _ in range(100):
+        pin = _generate_pin()
+        if not _get("customers", f"pin=eq.{pin}"):
+            return pin
+    raise RuntimeError("Failed to generate unique PIN after 100 attempts")
+
+def create_customer(shop_name: str, owner_name: str = "", mobile: str = "", city: str = "", notes: str = "") -> dict | None:
+    pin = generate_unique_pin()
+    data = {
+        "pin": pin,
+        "shop_name": shop_name,
+        "owner_name": owner_name,
+        "mobile": mobile,
+        "city": city,
+        "notes": notes,
+    }
+    result = _post("customers", data)
+    if result:
+        return result[0]
+    return None
+
+def get_customers() -> list:
+    return _get("customers", "order=created_at.desc")
+
+def get_customer_by_pin(pin: str) -> dict | None:
+    rows = _get("customers", f"pin=eq.{pin}")
+    return rows[0] if rows else None
+
+def get_customer_by_id(customer_id: int) -> dict | None:
+    rows = _get("customers", f"id=eq.{customer_id}")
+    return rows[0] if rows else None
+
+def update_customer(customer_id: int, data: dict) -> bool:
+    return _patch("customers", f"id=eq.{customer_id}", data)
+
+def set_customer_active(customer_id: int, is_active: bool) -> bool:
+    return _patch("customers", f"id=eq.{customer_id}", {"is_active": is_active})
+
+def set_customer_last_active(customer_id: int) -> bool:
+    import datetime
+    return _patch("customers", f"id=eq.{customer_id}", {"last_active_at": datetime.datetime.utcnow().isoformat()})

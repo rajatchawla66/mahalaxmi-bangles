@@ -142,9 +142,17 @@ def view_settings(page: ft.Page):
         content=ft.Container(
             padding=20,
             content=ft.Column(
-                spacing=10,
+                spacing=5,
                 controls=[
                     ft.Text("Account", size=18, weight=ft.FontWeight.BOLD),
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.PEOPLE, color=ft.Colors.INDIGO_700),
+                        title=ft.Text("Manage Customers", weight=ft.FontWeight.W_500),
+                        subtitle=ft.Text("Add, edit, block customers and manage PINs"),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                        on_click=lambda _: go("manage_customers")
+                    ),
+                    ft.Divider(height=1),
                     ft.ListTile(
                         leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
                         title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),

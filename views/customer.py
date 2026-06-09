@@ -932,6 +932,7 @@ def view_cart(page: ft.Page):
         header = {
             'customer_name': state.get('username', 'Customer'),
             'customer_mobile': state.get('customer_mobile', ''),
+            'customer_id': state.get('customer_id'),
             'order_date': datetime.datetime.now().strftime("%Y-%m-%d"),
             'total_amount': total_amount,
             'source': 'customer'
@@ -960,4 +961,157 @@ def view_cart(page: ft.Page):
     )
 
 
+# ============================================================
+# CUSTOMER MY ORDERS
+# ============================================================
 
+def view_customer_my_orders(page: ft.Page):
+    state = page.state
+    customer_id = state.get("customer_id")
+    if not customer_id:
+        return ft.Container(
+            expand=True, padding=40, alignment=ft.alignment.center,
+            content=ft.Text("Please log in first", color=ft.Colors.GREY_600),
+        )
+
+    orders = db.get_orders_by_customer_id(customer_id)
+    orders = orders or []
+
+    header_text = ft.Text(f"Total Orders: {len(orders)}", size=14, color=ft.Colors.GREY_700)
+    list_view = ft.ListView(expand=True, spacing=8, padding=12)
+
+    def build_order_cards():
+        cards = []
+        for order in orders:
+            oid = order.get("order_id")
+            date_str = (order.get("order_date") or "")[:10]
+            status = order.get("status") or "pending"
+            total = order.get("total_amount", 0)
+            name = order.get("customer_name", "")
+            items = order.get("order_items") or []
+
+            status_color = ft.Colors.AMBER_700
+            status_label = "Pending"
+            if status == "confirmed":
+                status_color = ft.Colors.GREEN_700
+                status_label = "Confirmed"
+            elif status == "cancelled":
+                status_color = ft.Colors.RED_600
+                status_label = "Cancelled"
+
+            item_summary = ", ".join(it.get("item_number", "?") for it in items[:3])
+            if len(items) > 3:
+                item_summary += f" +{len(items)-3} more"
+
+            detail_visible = {"show": False}
+            detail_column = ft.Column(spacing=4, visible=False)
+
+            def toggle_detail(_, oid=oid, dc=detail_column):
+                detail_visible["show"] = not detail_visible["show"]
+                dc.visible = detail_visible["show"]
+                page.update()
+
+            def build_detail_rows():
+                rows = []
+                for it in items:
+                    qty_parts = []
+                    for k in ["qty_2_2", "qty_2_4", "qty_2_6", "qty_2_8", "qty_2_10"]:
+                        v = it.get(k, 0)
+                        if v:
+                            sz = k.replace("qty_2_", "2.").replace("_", ".")
+                            qty_parts.append(f"{sz}:{v}")
+                    if it.get("quantity"):
+                        qty_parts.append(f"Qty:{it['quantity']}")
+                    qty_str = " ".join(qty_parts) if qty_parts else "—"
+                    color_str = it.get("color") or ""
+                    up = it.get("unit_price", 0)
+
+                    def on_add_again(e, order_item=it):
+                        catalogue = state.get("customer_full_catalogue") or []
+                        match = None
+                        for ci in catalogue:
+                            if ci.get("item_number") == order_item.get("item_number"):
+                                match = ci
+                                break
+                        if not match or not match.get("is_available", True):
+                            page.snack("Item no longer available", ft.Colors.RED_400)
+                            return
+                        has_sizes = bool(match.get("has_sizes", 0))
+                        has_color = bool(match.get("has_color", 0))
+                        if not has_sizes and not has_color:
+                            cart_item = {
+                                'item_number': match.get('item_number'),
+                                'category': match.get('category'),
+                                'unit_price': match.get('selling_price', 0),
+                                'quantity': 1,
+                            }
+                            state.setdefault('customer_cart', []).append(cart_item)
+                            page.snack("✅ Added to cart")
+                        else:
+                            state["customer_selected_item"] = match
+                            page.go("item_detail")
+
+                    rows.append(
+                        ft.Container(
+                            padding=ft.Padding(8, 4, 8, 4),
+                            border=ft.border.only(bottom=ft.border.BorderSide(1, ft.Colors.GREY_100)),
+                            content=ft.Column(spacing=4, controls=[
+                                ft.Row([
+                                    ft.Text(it.get("item_number", "?"), size=13, weight="bold", expand=True),
+                                    ft.Text(f"₹{up}", size=12, color=ft.Colors.GREEN_700),
+                                ]),
+                                ft.Row(spacing=8, controls=[
+                                    ft.Text(qty_str, size=11, color=ft.Colors.GREY_600),
+                                    ft.Text(color_str, size=11, color=ft.Colors.GREY_600) if color_str else ft.Container(height=0),
+                                ]),
+                                ft.Row([
+                                    ft.OutlinedButton("Add Again", icon=ft.Icons.ADD, on_click=on_add_again, height=28, style=ft.ButtonStyle(padding=ft.Padding(8, 0, 8, 0))),
+                                ]),
+                            ]),
+                        )
+                    )
+                if order.get("additional_info"):
+                    rows.append(
+                        ft.Container(padding=8, content=ft.Text(f"📝 {order['additional_info']}", size=11, color=ft.Colors.GREY_600, italic=True))
+                    )
+                return rows
+
+            detail_column.controls = build_detail_rows()
+
+            cards.append(
+                ft.Card(
+                    elevation=1,
+                    content=ft.Container(
+                        padding=12,
+                        content=ft.Column(spacing=6, controls=[
+                            ft.Row([
+                                ft.Text(f"#{oid}", size=15, weight="bold", expand=True),
+                                ft.Text(date_str, size=12, color=ft.Colors.GREY_600),
+                            ]),
+                            ft.Row([
+                                ft.Text(name, size=13, color=ft.Colors.GREY_700, expand=True),
+                                ft.Container(
+                                    padding=ft.Padding(8, 2, 8, 2),
+                                    bgcolor=status_color,
+                                    border_radius=4,
+                                    content=ft.Text(status_label, size=10, color=ft.Colors.WHITE, weight="bold"),
+                                ),
+                            ]),
+                            ft.Row([
+                                ft.Text(f"₹{total:,.0f}", size=16, weight="bold", color=ft.Colors.GREEN_700, expand=True),
+                                ft.TextButton("View Details", on_click=toggle_detail),
+                            ]),
+                            ft.Container(height=2),
+                            detail_column,
+                        ]),
+                    ),
+                )
+            )
+        return cards
+
+    list_view.controls = build_order_cards()
+
+    return ft.Column(expand=True, controls=[
+        ft.Container(padding=ft.Padding(16, 12, 16, 4), content=header_text),
+        list_view,
+    ])

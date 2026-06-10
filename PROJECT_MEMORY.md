@@ -258,6 +258,30 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-020: Place Order button silently dead — NameError: name 'datetime' is not defined
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **Symptom** | Customer adds items to cart, taps "Place Order" — nothing happens. No snackbar, no navigation, no order created. Button appears dead. |
+| **Root Cause** | `db.py:470` uses `datetime.datetime.utcnow().isoformat()` in `create_order()` but `import datetime` was never present at module level. A `NameError` is raised inside the Flet event handler, which Flet silently swallows — user sees no feedback. |
+| **Fix** | Added `import datetime` at the top of `db.py` (line 20). Removed redundant local `import datetime` from `set_order_status()` and `set_customer_last_active()` since the module-level import now covers all call sites. |
+| **Files** | `db.py:20` (added import), `db.py:568` (removed local import), `db.py:845` (removed local import) |
+| **Lesson** | Always ensure module-level imports cover all usage sites. Flet silently swallows exceptions in event callbacks — must surface errors manually or add comprehensive try/except. |
+
+---
+
+### BUG-019: Customer catalogue loads stale memory/cache data after logout/login or app restart
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **Symptom** | After logout → re-login, customer dashboard shows old catalogue. Manual refresh (🔄) required to see latest data. On app restart, stale cache served instead of fresh Supabase data. |
+| **Root Cause** | Two bugs combined: (1) `logout()` did NOT clear `customer_full_catalogue` or `customer_categories` from state — guard `if state.get("customer_full_catalogue") is None` found stale data and skipped loading entirely. (2) `view_customer_dashboard()` checked local cache (`cache.is_cache_available()`) FIRST, Supabase only if cache missing — stale `catalog.json` always preferred over fresh Supabase on app restart. |
+| **Fix** | (a) `logout()` now clears all 6 catalogue state keys (`customer_full_catalogue`, `customer_categories`, `customer_selected_category`, `customer_selected_subcategory`, `customer_search_query`, `customer_selected_item`). (b) Dashboard load priority reversed: try Supabase first → fallback to cache only on exception → empty lists if both fail. (c) PIN login `do_login()` clears all catalogue keys before navigating. (d) Session restore sets catalogue state to `None` for fresh fetch. (e) "Add Again" lazy-load uses same Supabase-first priority. |
+| **Files** | `main.py`, `views/customer.py` |
+| **Lesson** | Always clear all domain-specific state keys in `logout()`. Cache should be fallback, not primary. Guard checks must account for stale in-memory state. |
+
+---
+
 ### BUG-018: CI Flutter download corrupted — EOFError during flet build
 | Field | Detail |
 |-------|--------|
@@ -618,6 +642,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | BUG-020 — Place Order silently dead. Added `import datetime` to `db.py` (was missing in `create_order`). Removed redundant local imports. | `db.py`, `PROJECT_MEMORY.md` | Complete — pushing CI |
+| June 10, 2026 | BUG-019 — Customer catalogue stale data fix. `logout()` clears 6 catalogue keys. Dashboard load priority: Supabase first → cache fallback only on failure. PIN login and session restore clear stale state before fetch. "Add Again" same priority fix. | `main.py`, `views/customer.py`, `PROJECT_MEMORY.md` | Complete — pushed CI |
 | June 10, 2026 | Premium Brand Landing Page — Redesigned login screen as jewellery-brand landing page. Cream bg, gold accents, maroon CTA, logo, PIN login on-page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage text, small Admin/Labour links. Old `view_login()` replaced entirely. | `views/auth.py`, `PROJECT_MEMORY.md` | Complete |
 | June 10, 2026 | BUG-018 — CI Flutter download corruption fix. `flet build apk` wrapped in retry loop (max 2 attempts). Clean `$HOME/flutter/` on retry. Investigation revealed Flet 0.28.3 always downloads Flutter 3.29.2 — the 3.24.0 pin is ineffective. | `.github/workflows/build_apk.yml`, `PROJECT_MEMORY.md` | Complete — pushed |
 | June 10, 2026 | R1 fix — Customer PIN login network error messaging: `get_customer_by_pin()` uses `raise_errors=True`; invalid PIN, blocked, and connection errors each have distinct messages. | db.py, views/customer.py, PROJECT_MEMORY.md | Complete |

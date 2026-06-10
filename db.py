@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import json
+import datetime
 from urllib.parse import quote
 
 try:
@@ -564,7 +565,6 @@ def get_orders_by_customer_id(customer_id: int) -> list:
 def set_order_status(order_id: int, status: str) -> bool:
     if status not in ("pending", "confirmed", "cancelled", "completed"):
         return False
-    import datetime
     return _patch("orders", f"order_id=eq.{order_id}", {
         "status": status,
         "status_updated_at": datetime.datetime.utcnow().isoformat(),
@@ -841,5 +841,4 @@ def set_customer_active(customer_id: int, is_active: bool) -> bool:
     return _patch("customers", f"id=eq.{customer_id}", {"is_active": is_active})
 
 def set_customer_last_active(customer_id: int) -> bool:
-    import datetime
     return _patch("customers", f"id=eq.{customer_id}", {"last_active_at": datetime.datetime.utcnow().isoformat()})

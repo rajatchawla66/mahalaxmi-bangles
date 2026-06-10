@@ -357,67 +357,71 @@ def view_customer_subcategories(page: ft.Page):
 # ============================================================
 
 def _build_item_card(item, on_view_details):
-    """Build a one-column product card (shared by items grid and search)."""
+    """Build a portrait product card with hero image (shared by items grid and search)."""
     img_url = item.get("image_url")
 
     if img_url:
         img = ft.Container(
-            width=110, height=110,
+            height=220,
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            border_radius=8,
             content=ft.Image(
-                src=img_url, width=110, height=110, fit=ft.ImageFit.COVER,
+                src=img_url,
+                width=float('inf'),
+                height=220,
+                fit=ft.ImageFit.COVER,
                 error_content=ft.Container(
-                    width=110, height=110, bgcolor=ft.Colors.GREY_100,
+                    height=220, bgcolor=ft.Colors.GREY_100,
                     alignment=ft.alignment.center,
-                    content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=24),
+                    content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
                 ),
             ),
         )
     else:
         img = ft.Container(
-            width=110, height=110, bgcolor=ft.Colors.GREY_100,
-            border_radius=8, alignment=ft.alignment.center,
-            content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=24),
+            height=220, bgcolor=ft.Colors.GREY_100,
+            alignment=ft.alignment.center,
+            content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
         )
 
-    badges = []
-    if bool(item.get("has_sizes", 0)):
-        badges.append(ft.Container(
-            padding=ft.Padding(5, 1, 5, 1),
-            bgcolor=ft.Colors.AMBER_50, border_radius=3,
-            content=ft.Text("Multiple Sizes", size=9, color=ft.Colors.AMBER_800, weight=ft.FontWeight.W_500),
-        ))
-    if bool(item.get("has_color", 0)):
-        badges.append(ft.Container(
-            padding=ft.Padding(5, 1, 5, 1),
-            bgcolor=ft.Colors.PURPLE_50, border_radius=3,
-            content=ft.Text("Colors Available", size=9, color=ft.Colors.PURPLE_700, weight=ft.FontWeight.W_500),
-        ))
-
     return ft.Container(
-        border_radius=12, bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        bgcolor=ft.Colors.WHITE,
         border=ft.border.all(1, ft.Colors.GREY_200),
-        padding=10,
-        content=ft.Row([
-            img,
-            ft.Column([
-                ft.Text(item.get("item_number", ""), size=11, color=ft.Colors.GREY_400),
-                ft.Text(f"₹{item.get('selling_price', 0)}", size=20,
-                        color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_700),
-                ft.Row(badges, spacing=4) if badges else ft.Container(height=0),
-                ft.FilledButton(
-                    "View Details",
-                    on_click=on_view_details,
-                    height=32,
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=8),
-                        bgcolor=ft.Colors.BLUE_900,
-                        color=ft.Colors.WHITE,
+        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+        content=ft.Column(
+            spacing=0,
+            controls=[
+                img,
+                ft.Container(
+                    padding=ft.Padding(left=14, top=8, right=14, bottom=14),
+                    content=ft.Column(
+                        spacing=6,
+                        controls=[
+                            ft.Text(item.get("item_number", ""), size=11, color=ft.Colors.GREY_400),
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text(f"₹{item.get('selling_price', 0):,.0f}", size=22,
+                                            color=ft.Colors.GREEN_700, weight=ft.FontWeight.W_700),
+                                    ft.FilledButton(
+                                        "View",
+                                        on_click=on_view_details,
+                                        height=34,
+                                        style=ft.ButtonStyle(
+                                            shape=ft.RoundedRectangleBorder(radius=8),
+                                            bgcolor=ft.Colors.BLUE_900,
+                                            color=ft.Colors.WHITE,
+                                            padding=ft.Padding(left=16, top=4, right=16, bottom=4),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                 ),
-            ], spacing=4, expand=True),
-        ], alignment=ft.MainAxisAlignment.START, spacing=12),
+            ],
+        ),
     )
 
 
@@ -450,8 +454,8 @@ def view_customer_items(page: ft.Page):
 
     return ft.ListView(
         expand=True,
-        padding=16,
-        spacing=12,
+        padding=ft.Padding(left=12, top=8, right=12, bottom=16),
+        spacing=16,
         controls=item_cards if item_cards else [
             ft.Container(
                 expand=True, padding=40, alignment=ft.alignment.center,
@@ -470,7 +474,7 @@ def view_customer_search(page: ft.Page):
     catalog = state.get("customer_full_catalogue", [])
 
     results_header = ft.Text(size=15, weight="bold")
-    results_list = ft.ListView(expand=True, padding=16, spacing=12)
+    results_list = ft.ListView(expand=True, padding=ft.Padding(left=12, top=0, right=12, bottom=16), spacing=16)
 
     def update_results(query: str):
         query = query.lower().strip()

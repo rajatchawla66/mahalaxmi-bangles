@@ -595,15 +595,11 @@ def view_costing_detail(page: ft.Page):
 
     def recalculate_totals():
         total = 0.0
-        for row in material_rows.controls:
+        for card in material_rows.controls:
+            qty_tf = card.qty_tf
+            rate_tf = card.rate_tf
+            amt_text = card.amt_text
             try:
-                # row -> Container -> content -> Row -> controls
-                r_controls = row.content.controls
-                # Access .content because they are wrapped in Containers for fixed width
-                qty_tf = r_controls[1].content
-                rate_tf = r_controls[2].content
-                amt_text = r_controls[3].content
-                
                 qty = float(qty_tf.value or 0)
                 rate = float(rate_tf.value or 0)
                 amt = qty * rate
@@ -617,11 +613,11 @@ def view_costing_detail(page: ft.Page):
 
     def create_material_row(m_name="", qty=0, rate=0, is_unlisted=False):
         amt = qty * rate
-        
-        qty_tf = ft.TextField(label="Qty", value=str(qty) if qty else "", keyboard_type=ft.KeyboardType.NUMBER)
-        rate_tf = ft.TextField(label="Rate", value=str(rate) if rate else "", keyboard_type=ft.KeyboardType.NUMBER)
+
+        qty_tf = ft.TextField(label="Qty", value=str(qty) if qty else "", keyboard_type=ft.KeyboardType.NUMBER, expand=True)
+        rate_tf = ft.TextField(label="Rate", value=str(rate) if rate else "", keyboard_type=ft.KeyboardType.NUMBER, expand=True)
         amt_text = ft.Text(f"₹{amt:,.2f}", weight="bold", color=ft.Colors.INDIGO_700)
-        
+
         qty_tf.on_change = lambda e: recalculate_totals()
         rate_tf.on_change = lambda e: recalculate_totals()
 
@@ -634,7 +630,7 @@ def view_costing_detail(page: ft.Page):
                     break
 
         if is_unlisted or (m_name and m_name not in [m.get("name") for m in material_master]):
-            name_ctrl = ft.TextField(label="Material name", value=m_name)
+            name_ctrl = ft.TextField(label="Material name", value=m_name, expand=True)
             name_ctrl.data = "unlisted"
         else:
             name_ctrl = ft.Dropdown(
@@ -642,28 +638,39 @@ def view_costing_detail(page: ft.Page):
                 value=m_name if m_name else None,
                 options=[ft.dropdown.Option(m.get("name")) for m in material_master],
                 on_change=on_dd_select,
+                expand=True,
             )
             name_ctrl.data = "listed"
-            
-        def remove_row(e):
-            material_rows.controls.remove(row_container)
-            recalculate_totals()
 
-        row_container = ft.Container(
-            bgcolor=ft.Colors.GREY_50, border_radius=8, padding=10,
-            content=ft.Row(
-                spacing=5,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                controls=[
-                    ft.Container(name_ctrl, width=120),
-                    ft.Container(qty_tf, width=60),
-                    ft.Container(rate_tf, width=70),
-                    ft.Container(amt_text, width=70),
-                    ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=ft.Colors.RED_400, on_click=remove_row)
-                ]
-            )
+        def remove_row(e):
+            try:
+                material_rows.controls.remove(card)
+                recalculate_totals()
+                page.update()
+            except ValueError:
+                pass
+
+        card = ft.Container(
+            bgcolor=ft.Colors.GREY_50, border_radius=8, padding=12,
+            content=ft.Column(spacing=8, controls=[
+                ft.Row(spacing=8, controls=[
+                    name_ctrl,
+                    ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=ft.Colors.RED_400, on_click=remove_row),
+                ]),
+                ft.Row(spacing=8, controls=[
+                    qty_tf,
+                    rate_tf,
+                ]),
+                ft.Row([
+                    amt_text,
+                ]),
+            ]),
         )
-        return row_container
+        card.name_ctrl = name_ctrl
+        card.qty_tf = qty_tf
+        card.rate_tf = rate_tf
+        card.amt_text = amt_text
+        return card
 
     for m in existing_materials:
         material_rows.controls.append(create_material_row(m.get("material_name"), m.get("qty"), m.get("rate_per_unit")))
@@ -671,7 +678,7 @@ def view_costing_detail(page: ft.Page):
     def add_listed(_):
         material_rows.controls.append(create_material_row())
         page.update()
-        
+
     def add_unlisted(_):
         material_rows.controls.append(create_material_row(is_unlisted=True))
         page.update()
@@ -680,20 +687,18 @@ def view_costing_detail(page: ft.Page):
         if not material_rows.controls:
             snack("❌ At least one material row must exist")
             return
-            
+
         materials_list = []
-        for row in material_rows.controls:
-            r_controls = row.content.controls
-            # Access .content because they are wrapped in Containers for fixed width
-            name_ctrl = r_controls[0].content
-            qty_tf = r_controls[1].content
-            rate_tf = r_controls[2].content
-            
+        for card in material_rows.controls:
+            name_ctrl = card.name_ctrl
+            qty_tf = card.qty_tf
+            rate_tf = card.rate_tf
+
             m_name = name_ctrl.value
             if not m_name or not m_name.strip():
                 snack("❌ Material name cannot be empty")
                 return
-            
+
             try:
                 qty = float(qty_tf.value or 0)
                 if qty <= 0:
@@ -703,22 +708,21 @@ def view_costing_detail(page: ft.Page):
             except ValueError:
                 snack("❌ Invalid quantity or rate")
                 return
-                
+
             materials_list.append({
                 "material_name": m_name,
                 "qty": qty,
                 "rate_per_unit": rate,
                 "amount": qty * rate
             })
-            
+
         cost_price = total_cost_state["value"]
         selling_price = stored_sp["value"]
-        
-        # Save to DB
+
         if db.save_item_materials(item_number, materials_list) and db.save_item_costing(item_number, cost_price, selling_price):
             if "catalog_cache" in state:
                 del state["catalog_cache"]
-            
+
             import cache
             try:
                 import os

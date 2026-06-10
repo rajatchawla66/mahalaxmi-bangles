@@ -362,15 +362,15 @@ def _build_item_card(item, on_view_details):
 
     if img_url:
         img = ft.Container(
-            height=220,
+            height=350,
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
             content=ft.Image(
                 src=img_url,
                 width=float('inf'),
-                height=220,
+                height=350,
                 fit=ft.ImageFit.COVER,
                 error_content=ft.Container(
-                    height=220, bgcolor=ft.Colors.GREY_100,
+                    height=350, bgcolor=ft.Colors.GREY_100,
                     alignment=ft.alignment.center,
                     content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
                 ),
@@ -378,7 +378,7 @@ def _build_item_card(item, on_view_details):
         )
     else:
         img = ft.Container(
-            height=220, bgcolor=ft.Colors.GREY_100,
+            height=350, bgcolor=ft.Colors.GREY_100,
             alignment=ft.alignment.center,
             content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
         )
@@ -454,8 +454,8 @@ def view_customer_items(page: ft.Page):
 
     return ft.ListView(
         expand=True,
-        padding=ft.Padding(left=12, top=8, right=12, bottom=16),
-        spacing=16,
+        padding=ft.Padding(left=12, top=4, right=12, bottom=16),
+        spacing=12,
         controls=item_cards if item_cards else [
             ft.Container(
                 expand=True, padding=40, alignment=ft.alignment.center,
@@ -474,7 +474,7 @@ def view_customer_search(page: ft.Page):
     catalog = state.get("customer_full_catalogue", [])
 
     results_header = ft.Text(size=15, weight="bold")
-    results_list = ft.ListView(expand=True, padding=ft.Padding(left=12, top=0, right=12, bottom=16), spacing=16)
+    results_list = ft.ListView(expand=True, padding=ft.Padding(left=12, top=0, right=12, bottom=16), spacing=12)
 
     def update_results(query: str):
         query = query.lower().strip()

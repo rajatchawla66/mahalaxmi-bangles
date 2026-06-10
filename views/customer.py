@@ -619,6 +619,10 @@ def view_item_detail(page: ft.Page):
     img_url = item.get("image_url")
     image_section = None
     if img_url:
+        def _open_viewer(_):
+            state["viewer_image_url"] = img_url
+            page.go("item_image_viewer")
+
         image_section = ft.Container(
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
             border_radius=16,
@@ -627,18 +631,31 @@ def view_item_detail(page: ft.Page):
                 color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
                 offset=ft.Offset(0, 4),
             ),
-            content=ft.Image(
-                src=img_url, height=300, width=float('inf'),
-                fit=ft.ImageFit.COVER, border_radius=16,
-                error_content=ft.Container(
-                    height=300, bgcolor=ft.Colors.GREY_100,
-                    alignment=ft.alignment.center,
-                    content=ft.Icon(
-                        ft.Icons.IMAGE_NOT_SUPPORTED, size=48,
-                        color=ft.Colors.GREY_400,
+            on_click=_open_viewer,
+            content=ft.Stack([
+                ft.Image(
+                    src=img_url, height=400, width=float('inf'),
+                    fit=ft.ImageFit.COVER, border_radius=16,
+                    error_content=ft.Container(
+                        height=400, bgcolor=ft.Colors.GREY_100,
+                        alignment=ft.alignment.center,
+                        content=ft.Icon(
+                            ft.Icons.IMAGE_NOT_SUPPORTED, size=48,
+                            color=ft.Colors.GREY_400,
+                        ),
                     ),
                 ),
-            ),
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.ZOOM_IN, size=16, color=ft.Colors.WHITE),
+                        ft.Text("Tap to zoom", size=11, color=ft.Colors.WHITE),
+                    ], spacing=4, alignment=ft.MainAxisAlignment.CENTER),
+                    bgcolor=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
+                    border_radius=12,
+                    padding=ft.Padding(left=8, top=4, right=8, bottom=4),
+                    right=12, bottom=12,
+                ),
+            ]),
         )
 
     # ─── Product info card ─────────────────────────────────────────
@@ -884,6 +901,61 @@ def view_item_detail(page: ft.Page):
             bottom_cta,
         ],
     )
+
+
+# ============================================================
+# ITEM IMAGE VIEWER (Full-Screen + Pinch Zoom)
+# ============================================================
+
+def view_item_image_viewer(page: ft.Page):
+    """Full-screen image viewer with pinch zoom support."""
+    state = page.state
+    img_url = state.get("viewer_image_url")
+
+    if not img_url:
+        page.go_back()
+        return ft.Container()
+
+    def _close(_):
+        page.go_back()
+
+    img = ft.Image(
+        src=img_url,
+        width=float('inf'),
+        height=float('inf'),
+        fit=ft.ImageFit.CONTAIN,
+    )
+
+    if hasattr(ft, 'InteractiveViewer'):
+        viewer = ft.InteractiveViewer(
+            min_scale=1.0,
+            max_scale=5.0,
+            pan_enabled=True,
+            scale_enabled=True,
+            content=img,
+        )
+    else:
+        viewer = img
+
+    return ft.Container(
+        expand=True,
+        bgcolor=ft.Colors.BLACK,
+        content=ft.Stack([
+            ft.Container(expand=True, content=viewer),
+            ft.Container(
+                content=ft.IconButton(
+                    icon=ft.Icons.CLOSE,
+                    icon_color=ft.Colors.WHITE,
+                    icon_size=28,
+                    on_click=_close,
+                    bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+                ),
+                right=8, top=48,
+                border_radius=20,
+            ),
+        ]),
+    )
+
 
 def view_cart(page: ft.Page):
     """Cart view for customers."""

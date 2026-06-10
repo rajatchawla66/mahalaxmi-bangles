@@ -514,6 +514,7 @@ async def main(page: ft.Page):
         "customer_search_results": "customer_dashboard",
         "cart": "customer_dashboard",
         "customer_my_orders": "customer_dashboard",
+        "item_image_viewer": "item_detail",
     }
 
     # ============================================================
@@ -1012,6 +1013,9 @@ async def main(page: ft.Page):
         elif cur == "item_detail":
             appbar = build_app_bar("Item Detail", show_back=True)
             body = v_customer.view_item_detail(page)
+        elif cur == "item_image_viewer":
+            appbar = None
+            body = v_customer.view_item_image_viewer(page)
         elif cur == "cart":
             appbar = build_app_bar("Your Cart", show_back=True)
             body = v_customer.view_cart(page)

@@ -353,6 +353,27 @@ def view_customer_subcategories(page: ft.Page):
     )
 
 # ============================================================
+# WATERMARK OVERLAY
+# ============================================================
+
+_WATERMARK_PATH = "assets/watermark.png"
+
+def _watermark_overlay(size=120):
+    """Return a centered watermark image for Stack overlay."""
+    return ft.Container(
+        alignment=ft.alignment.center,
+        expand=True,
+        content=ft.Image(
+            src=_WATERMARK_PATH,
+            width=size,
+            height=size,
+            fit=ft.ImageFit.CONTAIN,
+            opacity=0.30,
+        ),
+    )
+
+
+# ============================================================
 # SHARED ITEM CARD BUILDER
 # ============================================================
 
@@ -364,17 +385,20 @@ def _build_item_card(item, on_view_details):
         img = ft.Container(
             height=350,
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            content=ft.Image(
-                src=img_url,
-                width=float('inf'),
-                height=350,
-                fit=ft.ImageFit.COVER,
-                error_content=ft.Container(
-                    height=350, bgcolor=ft.Colors.GREY_100,
-                    alignment=ft.alignment.center,
-                    content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
+            content=ft.Stack([
+                ft.Image(
+                    src=img_url,
+                    width=float('inf'),
+                    height=350,
+                    fit=ft.ImageFit.COVER,
+                    error_content=ft.Container(
+                        height=350, bgcolor=ft.Colors.GREY_100,
+                        alignment=ft.alignment.center,
+                        content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color=ft.Colors.GREY_400, size=32),
+                    ),
                 ),
-            ),
+                _watermark_overlay(110),
+            ]),
         )
     else:
         img = ft.Container(
@@ -645,6 +669,7 @@ def view_item_detail(page: ft.Page):
                         ),
                     ),
                 ),
+                _watermark_overlay(154),
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(ft.Icons.ZOOM_IN, size=16, color=ft.Colors.WHITE),
@@ -919,12 +944,15 @@ def view_item_image_viewer(page: ft.Page):
     def _close(_):
         page.go_back()
 
-    img = ft.Image(
-        src=img_url,
-        width=float('inf'),
-        height=float('inf'),
-        fit=ft.ImageFit.CONTAIN,
-    )
+    viewer_content = ft.Stack([
+        ft.Image(
+            src=img_url,
+            width=float('inf'),
+            height=float('inf'),
+            fit=ft.ImageFit.CONTAIN,
+        ),
+        _watermark_overlay(176),
+    ])
 
     if hasattr(ft, 'InteractiveViewer'):
         viewer = ft.InteractiveViewer(
@@ -932,10 +960,10 @@ def view_item_image_viewer(page: ft.Page):
             max_scale=5.0,
             pan_enabled=True,
             scale_enabled=True,
-            content=img,
+            content=viewer_content,
         )
     else:
-        viewer = img
+        viewer = viewer_content
 
     return ft.Container(
         expand=True,

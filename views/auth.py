@@ -150,45 +150,56 @@ def view_login(page: ft.Page):
             spacing=0,
             controls=[
                 # Top spacer
-                ft.Container(height=32),
+                ft.Container(height=24),
 
-                # Brand logo
-                ft.Image(src="assets/icon.png", width=72, height=72),
-                ft.Container(height=16),
-
-                # Firm name
-                ft.Text(
-                    "Mahalaxmi Bangles",
-                    size=26, weight="bold", color=_DARK,
-                    text_align=ft.TextAlign.CENTER,
+                # Hero section: watermark background + centered title
+                ft.Stack(
+                    alignment=ft.alignment.center,
+                    height=200,
+                    controls=[
+                        ft.Image(
+                            src="assets/watermark.png",
+                            width=200, height=200,
+                            opacity=0.12,
+                            fit=ft.ImageFit.CONTAIN,
+                        ),
+                        ft.Column(
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=4,
+                            controls=[
+                                ft.Text(
+                                    "Mahalaxmi Bangles",
+                                    size=26, weight="bold", color=_DARK,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                                ft.Text(
+                                    "Wholesale Bridal Chuda Manufacturer",
+                                    size=12, color=_MUTED,
+                                    text_align=ft.TextAlign.CENTER,
+                                ),
+                            ],
+                        ),
+                    ],
                 ),
-                ft.Container(height=4),
-
-                # Subtitle
-                ft.Text(
-                    "Wholesale Bridal Chuda Manufacturer",
-                    size=12, color=_MUTED, text_align=ft.TextAlign.CENTER,
-                ),
-                ft.Container(height=16),
+                ft.Container(height=20),
 
                 # Gold ornamental divider
                 _gold_divider(),
                 ft.Container(height=16),
 
-                # GST card
+                # GST row (single line, transparent)
                 ft.Container(
-                    padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                    padding=ft.padding.symmetric(horizontal=24, vertical=8),
                     border_radius=8,
                     border=ft.border.all(1, ft.Colors.with_opacity(0.12, _GOLD)),
-                    bgcolor=ft.Colors.WHITE,
-                    content=ft.Column(
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        spacing=2,
+                    content=ft.Row(
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=6,
                         controls=[
                             ft.Text("GST", size=9, color=_MUTED),
                             ft.Text(
                                 "08AHPPC2086C1ZI",
-                                size=13, color=_DARK, weight="bold",
+                                size=12, color=_DARK, weight="bold",
                                 selectable=True,
                             ),
                         ],
@@ -275,7 +286,7 @@ def view_login(page: ft.Page):
                         alignment=ft.MainAxisAlignment.CENTER,
                         controls=[
                             _contact_card(
-                                "Our Location", ft.Icons.LOCATION_ON,
+                                "Visit Showroom", ft.Icons.LOCATION_ON,
                                 "https://maps.app.goo.gl/b6qLbcbSAfPvRZGB7",
                             ),
                             _contact_card(

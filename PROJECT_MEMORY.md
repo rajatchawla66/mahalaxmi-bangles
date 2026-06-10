@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.18 (build 35)
+- **Latest version:** v1.0.18 (build 44+)
 
 ---
 
@@ -378,8 +378,11 @@ Exit: closes dialog → calls page.window.destroy()
 | **Date** | June 8, 2026 |
 | **Symptom** | "Package conflicts with existing package" — must uninstall and reinstall each time. |
 | **Root Cause** | GitHub Actions runners are ephemeral. Each build generates a new random debug keystore, signing APK with a different certificate. Android rejects certificate mismatch. |
-| **Fix** | Committed deterministic debug keystore (`android/debug.keystore`) to repo. CI copies it to `~/.android/` before `flet build apk`. Every build uses the exact same signing key regardless of cache state. Removed unreliable `actions/cache` approach. |
-| **Files** | `.github/workflows/build_apk.yml`, `android/debug.keystore` (new) |
+| **Fix Attempt 1** | Committed deterministic debug keystore (`android/debug.keystore`) to repo. CI copies it to `~/.android/` before `flet build apk`. |
+| **Fix Attempt 2** | Added `fetch-depth: 0` to checkout step so `git rev-list --count HEAD` returns actual commit count for versionCode. |
+| **Fix — Final** | **Replaced debug keystore with proper release signing via GitHub Secrets.** Removed `android/debug.keystore`. CI now decodes keystore from `ANDROID_KEYSTORE_BASE64` secret and passes `--android-signing-key-store` flags to `flet build apk`. One-time uninstall required, then all future builds use the same permanent key. |
+| **Status** | ✅ **Fixed.** First build after this fix requires uninstalling old app once. Subsequent builds will use the same permanent release keystore (SHA-256: `EB:AA:3E:11:00:76:42:7E:A7:7E:08:61:67:DE:D0:11:5A:60:4D:58:0A:38:79:79:6D:8F:3B:80:C6:A2:4D:B6`, alias: `mahalaxmi`, valid until 2051). |
+| **Files** | `.github/workflows/build_apk.yml`, `.gitignore`, `android/debug.keystore` (del) |
 
 ---
 
@@ -592,6 +595,13 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | R1 fix — Customer PIN login network error messaging: `get_customer_by_pin()` uses `raise_errors=True`; invalid PIN, blocked, and connection errors each have distinct messages. | db.py, views/customer.py, PROJECT_MEMORY.md | Complete |
+| June 10, 2026 | Timezone fix — Customer last login shows IST instead of UTC. Helper `format_ist_datetime()` parses ISO timestamp, converts to Asia/Kolkata. Shows "Never" for None. | views/customers.py | Complete — pushed, verified |
+| June 10, 2026 | App logo — added `assets/icon.png`, configured adaptive icon `[tool.flet.android]` in pyproject.toml (background #000000, foreground from icon file). | pyproject.toml, assets/icon.png (new) | Complete — pushed, verified |
+| June 10, 2026 | versionCode fix — added `fetch-depth: 0` to CI checkout so `git rev-list --count HEAD` returns actual commit count instead of always 1. | .github/workflows/build_apk.yml | Pushed, pending verification (blocked by BUG-011 signing issue) |
+| June 10, 2026 | Release Blocker Batch 1 — Fix 8 bugs: R2 (session mobile key mismatch), R3 (cart remove stale index), H1 (place_order redirect to dashboard), H2 (Add Again lazy-load catalogue), H3/H4 (admin status/delete check DB result), H5 (safe .get() on order fields), M5 (PIN uniqueness raise_errors), M6 (cache filter zero-price items). | views/customer.py, views/home.py, main.py, db.py | Complete |
+| June 10, 2026 | Pre-release regression audit (12 flows) — 30+ bugs found. Report added as Section 13. | PROJECT_MEMORY.md | Complete |
+| June 10, 2026 | Quick Add Again per item in My Orders | views/customer.py | Complete |
 | June 10, 2026 | Customer PIN Login System (Phases 1-3): db.py — customer CRUD functions (create/get/update/block/last_active) + 8-digit unique PIN auto-generation; views/customers.py (new) — Admin Manage Customers UI (search, add/edit dialog, block/unblock, copy PIN, PIN reveal on creation); views/settings.py — Manage Customers link in Account card; main.py — manage_customers route, customer_login route replaces customer_name_entry, state keys (customer_id, customer_shop_name), BACK_MAP entries, session restore, logout clears customer state; views/auth.py — customer button routes to customer_login; views/customer.py — view_customer_pin_login replaces view_customer_name_entry (8-digit PIN validation, db lookup, active check, session save, last_active_at update); session_helper.py — persists customer_id/customer_shop_name; sql/create_customers_table.sql for Supabase schema. | db.py, views/customers.py (new), views/settings.py, main.py, views/auth.py, views/customer.py, session_helper.py, sql/create_customers_table.sql (new), PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Order Status System (Phase 1 — Admin side): added `status='pending'` to create_order; added `set_order_status()` in db.py with status validation; added status badge + Confirm/Cancel buttons to admin Home order cards; confirmed/cancelled orders read-only; missing/null status treated as pending. Run `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';` in Supabase first. Bump to v1.0.17. | db.py, views/home.py, PROJECT_MEMORY.md, version.txt | Complete |
 | June 9, 2026 | Customer Manual Catalogue Refresh: added 🔄 icon to customer AppBar on all catalogue screens via `_customer_refresh` handler. Removed Offline Sync UI: Data & Sync card from Settings, Sync icon from Admin AppBar. Kept sync_page route/code/cache.py as hidden fallback. Bump to v1.0.16. | main.py, views/settings.py, PROJECT_MEMORY.md, version.txt | Complete |
@@ -618,3 +628,99 @@ chcp 65001
 | June 8, 2026 | Diagnostic marker "PDF FORMAT VERSION: v2" added to PDF header, confirmed APK runs redesigned generator, marker removed after verification. | slip_pdf_generator.py | Complete — Verified on device |
 | June 8, 2026 | Redesigned Karigar Slip PDF: maroon/gold palette, bordered details card, 3-zone item layout (image | center text | sizes box), image placeholders, divider lines, signature line. Replaced flat cells with rect-based cards. | slip_pdf_generator.py | Complete — Verified on device |
 | June 7, 2026 | Initial CI setup, git init, first APK build, back-button fix, PROJECT_CONTEXT.md | Multiple | Complete |
+
+---
+
+## 13. PRE-RELEASE AUDIT REPORT (June 10, 2026)
+
+Full regression audit across 12 major flows. 30+ bugs found. Organized by severity.
+
+### 🚫 RELEASE BLOCKERS (Fix before ship)
+
+| ID | File:Line | Description | Status |
+|----|-----------|-------------|--------|
+| **R1** | `views/customer.py:38-50` / `db.py:819` | DB unreachable shows "Invalid PIN" — `get_customer_by_pin()` now uses `raise_errors=True`; `do_login()` catches exceptions and shows connection error. Invalid PIN only when DB succeeds and returns no customer. | **FIXED** |
+| **R2** | `session_helper.py:17` / `main.py:486` | Session saves `customer_mobile` but restores `mobile` — key mismatch, mobile lost on restart | **FIXED** |
+| **R3** | `views/customer.py:919-921` | Cart remove uses stale positional index — wrong item removed or IndexError after shift | **FIXED** |
+| **R4** | `views/pricing.py:194-195` | New items created with zero price — invisible in customer catalogue (filtered `gt.0`) | Pending |
+| **R5** | `views/pricing.py:42-43` | FilePicker overlay leak — every Add Item visit appends new picker, never removed | Pending |
+| **R6** | `views/pricing.py:216-226` | Save reports "✅ Item saved!" even when ALL 4+ DB update calls fail — no return-value checks | Pending |
+| **R7** | `views/pricing.py:336` | `it["selling_price"] - it["cost_price"]` direct access — KeyError crashes catalogue render | Pending |
+| **R8** | `db.py:737-747` | `save_item_materials()` deletes before insert with no rollback — data loss on insert failure | Pending |
+
+### 🔴 HIGH Priority
+
+| ID | File:Line | Description | Status |
+|----|-----------|-------------|--------|
+| H1 | `views/customer.py:944` | After place_order, redirects to admin login instead of customer dashboard | **FIXED** |
+| H2 | `views/customer.py:1029-1038` | Add Again says "unavailable" for all items when catalogue not yet lazy-loaded | **FIXED** |
+| H3 | `views/home.py:137-154` | Status confirm/cancel updates local cache even if DB PATCH fails — phantom state | **FIXED** |
+| H4 | `views/home.py:102-135` | Delete order shows "✅ Deleted" even when DB delete fails | **FIXED** |
+| H5 | `views/home.py:159,166,170` | Three `order[key]` direct accesses — KeyError crashes home if keys missing | **FIXED** |
+| H6 | `views/home.py:206-224` | Background thread calls `page.update()` — thread-safety violation, RangeError risk | Pending |
+| H7 | `views/orders.py:762-766` | `int.is_integer()` AttributeError crash on non-numeric quantity in order detail | Pending |
+| H8 | `views/customer.py:60` | `customer["id"]` direct access — KeyError if DB column renamed | Pending |
+| H9 | `views/customer.py:73-74` | `save_session()` IO exception crashes login after successful PIN auth | Pending |
+| H10 | `views/customers.py:59-62,168-178` | Block/Edit always shows success snackbar even when DB PATCH fails | Pending |
+| H11 | `views/pricing.py:218` | `card_path` overwritten with `""` on every save — destroys existing card paths | Pending |
+| H12 | `main.py:618-642` | `go_back()` doesn't guard against open dialogs — state corruption | Pending |
+
+### 🟡 MEDIUM Priority
+
+| ID | File:Line | Description | Status |
+|----|-----------|-------------|--------|
+| M1 | `views/pricing.py:114` | HTTP request on every keystroke in item number field — rate-limit risk | Pending |
+| M2 | `db.py:66-85` | All HTTP wrappers swallow exceptions — no caller knows if data persisted | Pending |
+| M3 | `slip_pdf_generator.py:39-43` | Empty font path crashes PDF generation if HindiFont.ttf missing | Pending |
+| M4 | `views/pricing.py:576` | `float("")` on empty custom margin crashes costing detail | Pending |
+| M5 | `db.py:792` | PIN uniqueness check false positive on network error (`_get` returns `[]`) | **FIXED** |
+| M6 | `views/customer.py:108` | Cache path doesn't filter zero-price items, DB path does — inconsistency | **FIXED** |
+| M7 | `views/customer.py:1067-1069` | ft.Card inside ft.ListView blocks touch on buttons (KNOWN_ISSUES.md #2) | Pending |
+| M8 | `views/pricing.py:386-398` | Rapid hide/show clicks race condition — wrong toggle state | Pending |
+| M9 | `views/orders.py:840-843` | Edit order always sets mixed mode even for single-category orders | Pending |
+| M10 | `views/orders.py:1044,1086` | Share PDF double-click guard flag set but never checked | Pending |
+| M11 | `views/customer.py:1050-1052` | Add Again for sized items doesn't pre-fill original quantities | Pending |
+
+### 🟢 LOW / COSMETIC
+
+| ID | File:Line | Description | Status |
+|----|-----------|-------------|--------|
+| L1 | `main.py:483` | Dead `session_data.get("name")` branch — helper never writes `"name"` key | Pending |
+| L2 | `views/customers.py:114,164` | `name_tf.value.strip()` crashes if value is `None` | Pending |
+| L3 | `views/customer.py:31` | `pin_input.value.strip()` could crash if value is `None` | Pending |
+| L4 | `session_helper.py:14-19` | Cart not persisted — lost on app restart | Pending |
+| L5 | `views/pricing.py:48-49` | "Camera" button identical to "Gallery" — misleading | Pending |
+| L6 | `.github/workflows/build_apk.yml:78` | `if-no-files-found: warn` hides build failures; should be `error` | Pending |
+| L7 | `main.py:492-516` | `item_detail` missing from BACK_MAP — empty nav_history + back = exit dialog | Pending |
+| L8 | `db.py:669-674,749-756` | Duplicate `get_default_margin()` with different key — confusing | Pending |
+
+### ✅ Flows With No Major Issues
+
+- Manage Customers UI (no crashes, all paths guarded)
+- Customer PIN login (core flow works end-to-end — R1 fixed: network/db errors vs invalid PIN distinguished)
+- My Orders display (list + expandable detail work correctly)
+- Add Again → simple item (direct cart add works)
+- Add Again → sized/colored (navigates to item_detail)
+- Session restore (login works, customer_id + mobile persisted) — R2 fixed
+- APK workflow (Flutter 3.24.0 pinned, keystore committed, CI structural sound)
+
+---
+### CR-001: CI signing failure — Gradle daemon doesn't inherit Flet's build_env
+
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **Symptom** | `SigningConfig "release" is missing required property "storePassword"` during CI build, despite `--android-signing-key-store-password` flag being passed to `flet build apk`. |
+| **Root Cause** | Flet 0.28.3 template generates `signingConfigs.release` that reads `System.getenv('FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD')` in Gradle. Flet's `flutter_build()` sets these env vars in `build_env` dict → passed to `subprocess.run()`. The Gradle daemon process may not inherit env vars from the subprocess environment correctly, causing `System.getenv()` to return null. |
+| **Fix** | Added `env:` block at the GitHub Actions step level (`build_apk.yml:60-62`) so `FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD` and `FLET_ANDROID_SIGNING_KEY_PASSWORD` are in the process environment before any command runs. Also added pre-flight emptiness checks so a missing secret fails fast with a clear message. |
+| **Files** | `.github/workflows/build_apk.yml:59-76` |
+
+---
+### TASK-001: Offline backup of Android release signing credentials
+
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **What** | Created `release-signing-backup/` with keystore copy, fingerprints, recovery instructions, and security warnings. |
+| **Details** | SHA256: `EB:AA:3E:11:00:76:42:7E:A7:7E:08:61:67:DE:D0:11:5A:60:4D:58:0A:38:79:79:6D:8F:3B:80:C6:A2:4D:B6`. Added `release-signing-backup/` to `.gitignore`. Folder excluded from git. |
+| **Files** | `release-signing-backup/README_SIGNING_BACKUP.txt`, `release-signing-backup/signing_fingerprint.txt`, `release-signing-backup/recovery_instructions.txt`, `release-signing-backup/mahalaxmi-release.keystore`, `.gitignore` |

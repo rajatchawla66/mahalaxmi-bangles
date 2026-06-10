@@ -486,6 +486,8 @@ async def main(page: ft.Page):
             state["customer_mobile"] = session_data.get("customer_mobile") or session_data.get("mobile", "")
             state["customer_id"] = session_data.get("customer_id")
             state["customer_shop_name"] = session_data.get("customer_shop_name")
+            state["customer_full_catalogue"] = None
+            state["customer_categories"] = None
             state["current_page"] = "customer_dashboard"
 
     # Back navigation map: where each page should go back to
@@ -655,6 +657,12 @@ async def main(page: ft.Page):
         state["customer_shop_name"] = None
         state["customer_mobile"] = None
         state["customer_cart"] = []
+        state["customer_full_catalogue"] = None
+        state["customer_categories"] = None
+        state["customer_selected_category"] = None
+        state["customer_selected_subcategory"] = None
+        state["customer_search_query"] = None
+        state["customer_selected_item"] = None
         state["current_page"] = "login"
         render()
 

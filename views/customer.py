@@ -62,6 +62,13 @@ def view_customer_pin_login(page: ft.Page):
         state["username"] = customer.get("shop_name", "")
         state["customer_mobile"] = customer.get("mobile", "")
         state["customer_cart"] = []
+        # Clear stale catalogue so dashboard fetches fresh
+        state["customer_full_catalogue"] = None
+        state["customer_categories"] = None
+        state["customer_selected_category"] = None
+        state["customer_selected_subcategory"] = None
+        state["customer_search_query"] = None
+        state["customer_selected_item"] = None
 
         # Update last_active_at
         try:
@@ -101,15 +108,19 @@ def view_customer_dashboard(page: ft.Page):
     """Main customer entry grid showing categories — portrait tiles 2-per-row."""
     state = page.state
 
-    # --- Data Loading Strategy: Fetch Once ---
+    # --- Data Loading Strategy: Supabase first, cache fallback ---
     if state.get("customer_full_catalogue") is None:
-        if cache.is_cache_available():
-            raw = cache.get_cached_catalog()
-            state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
-            state["customer_categories"] = cache.get_cached_categories()
-        else:
+        try:
             state["customer_full_catalogue"] = db.get_customer_catalogue()
             state["customer_categories"] = db.get_categories(active_only=True)
+        except Exception:
+            if cache.is_cache_available():
+                raw = cache.get_cached_catalog()
+                state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
+                state["customer_categories"] = cache.get_cached_categories()
+            else:
+                state["customer_full_catalogue"] = []
+                state["customer_categories"] = []
 
     catalog = state["customer_full_catalogue"] or []
     categories = state["customer_categories"] or []
@@ -1138,14 +1149,15 @@ def view_customer_my_orders(page: ft.Page):
                         catalogue = state.get("customer_full_catalogue")
                         if catalogue is None:
                             try:
+                                state["customer_full_catalogue"] = db.get_customer_catalogue()
+                                catalogue = state["customer_full_catalogue"]
+                            except Exception:
                                 if cache.is_cache_available():
                                     raw = cache.get_cached_catalog()
                                     state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
+                                    catalogue = state["customer_full_catalogue"]
                                 else:
-                                    state["customer_full_catalogue"] = db.get_customer_catalogue()
-                                catalogue = state["customer_full_catalogue"]
-                            except Exception:
-                                catalogue = []
+                                    catalogue = []
                         match = None
                         for ci in catalogue:
                             if ci.get("item_number") == order_item.get("item_number"):

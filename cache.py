@@ -230,13 +230,15 @@ def get_cached_catalog() -> list:
 
 
 def get_cached_categories() -> list:
-    """Return cached categories list."""
+    """Return cached categories list, filtered to active only (matches online behavior)."""
     if not os.path.exists(_catalog_path()):
         return []
     try:
         with open(_catalog_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         categories = data.get("categories", [])
+        # Filter to active only — match online get_categories(active_only=True)
+        categories = [c for c in categories if c.get("is_active", True)]
         # Map cover URLs to local cached paths
         for cat in categories:
             cat_url = cat.get("cover_image_url")

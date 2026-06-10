@@ -897,13 +897,17 @@ async def main(page: ft.Page):
         def _customer_refresh(_):
             try:
                 fresh = db.get_customer_catalogue()
-                fresh_cats = db.get_categories(active_only=True)
                 state["customer_full_catalogue"] = fresh
-                state["customer_categories"] = fresh_cats
-                snack("✅ Catalogue refreshed")
-                render()
             except Exception as ex:
                 snack(f"❌ Refresh failed: {ex}", ft.Colors.RED_400)
+                return
+            try:
+                fresh_cats = db.get_categories(active_only=True)
+                state["customer_categories"] = fresh_cats
+            except Exception:
+                pass
+            snack("✅ Catalogue refreshed")
+            render()
 
         _refresh_icon = ft.IconButton(ft.Icons.REFRESH, icon_color=ft.Colors.WHITE, tooltip="Refresh Catalogue", on_click=_customer_refresh)
         _my_orders_icon = ft.IconButton(ft.Icons.RECEIPT_LONG, icon_color=ft.Colors.WHITE, tooltip="My Orders", on_click=lambda _: go("customer_my_orders"))

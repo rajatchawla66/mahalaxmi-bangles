@@ -108,33 +108,40 @@ def view_customer_dashboard(page: ft.Page):
     """Main customer entry grid showing categories — portrait tiles 2-per-row."""
     state = page.state
 
-    # --- Data Loading Strategy: Supabase first, cache fallback ---
+    # --- Load catalogue: Supabase first, cache fallback ---
     if state.get("customer_full_catalogue") is None:
         try:
             state["customer_full_catalogue"] = db.get_customer_catalogue()
-            state["customer_categories"] = db.get_categories(active_only=True)
         except Exception:
             if cache.is_cache_available():
                 raw = cache.get_cached_catalog()
                 state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
-                state["customer_categories"] = cache.get_cached_categories()
             else:
                 state["customer_full_catalogue"] = []
+
+    # --- Load categories: independently guarded, Supabase first, cache fallback ---
+    if state.get("customer_categories") is None:
+        try:
+            state["customer_categories"] = db.get_categories(active_only=True)
+        except Exception:
+            if cache.is_cache_available():
+                state["customer_categories"] = cache.get_cached_categories()
+            else:
                 state["customer_categories"] = []
 
     catalog = state["customer_full_catalogue"] or []
     categories = state["customer_categories"] or []
 
-    # Calculate item counts per category in-memory
+    # Calculate item counts per category in-memory (with normalized names)
     counts = {}
     for it in catalog:
-        cat_name = it.get("category", "Uncategorized")
+        cat_name = (it.get("category") or "Uncategorized").strip()
         counts[cat_name] = counts.get(cat_name, 0) + 1
 
     # Build first-item-image lookup per category (fallback for missing cover)
     cat_first_image = {}
     for it in catalog:
-        cname = it.get("category")
+        cname = (it.get("category") or "").strip()
         if cname and it.get("image_url") and cname not in cat_first_image:
             cat_first_image[cname] = it["image_url"]
 
@@ -168,7 +175,7 @@ def view_customer_dashboard(page: ft.Page):
 
     cat_tiles = []
     for cat in categories:
-        cname = cat["name"]
+        cname = cat["name"].strip()
         item_count = counts.get(cname, 0)
         if item_count == 0:
             continue
@@ -177,7 +184,7 @@ def view_customer_dashboard(page: ft.Page):
         cover_url = cat.get("cover_image_url") or cat_first_image.get(cname)
 
         def on_cat_click(e, c=cat):
-            state["customer_selected_category"] = c["name"]
+            state["customer_selected_category"] = c["name"].strip()
             state["customer_selected_subcategory"] = None
             subs_str = c.get("sub_categories", "").strip()
             if subs_str:
@@ -271,7 +278,7 @@ def view_customer_subcategories(page: ft.Page):
     sub_counts = {}
     sub_covers = {} # Use first item image as cover
     for it in catalog:
-        if it.get("category") == category:
+        if (it.get("category") or "").strip() == category.strip():
             sub_name = it.get("sub_category")
             if sub_name:
                 sub_counts[sub_name] = sub_counts.get(sub_name, 0) + 1
@@ -476,8 +483,8 @@ def view_customer_items(page: ft.Page):
 
     items = []
     for it in catalog:
-        if it.get("category") == category:
-            if not subcategory or it.get("sub_category") == subcategory:
+        if (it.get("category") or "").strip() == category.strip():
+            if not subcategory or (it.get("sub_category") or "").strip() == subcategory.strip():
                 items.append(it)
 
     item_cards = []

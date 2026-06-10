@@ -230,6 +230,7 @@ def add_category(name: str, icon: str = "CATEGORY", color: str = "GREY_400",
         "description": description, "sub_categories": sub_categories,
         "order_type": order_type,
         "cover_image_url": cover_image_url,
+        "is_active": True,
     })
     return len(result) > 0
 

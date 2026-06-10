@@ -642,6 +642,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | Category system stability — 6 fixes: (1) add_category sets is_active=True, (2) decoupled catalogue/category fetch try/except, (3) independent category guard, (4) decoupled manual refresh try/except, (5) offline cache is_active filtering, (6) .strip() normalization on category name comparisons | `db.py`, `views/customer.py`, `main.py`, `cache.py`, `PROJECT_MEMORY.md` | Complete — pushing CI |
 | June 10, 2026 | BUG-020 — Place Order silently dead. Added `import datetime` to `db.py` (was missing in `create_order`). Removed redundant local imports. | `db.py`, `PROJECT_MEMORY.md` | Complete — pushing CI |
 | June 10, 2026 | BUG-019 — Customer catalogue stale data fix. `logout()` clears 6 catalogue keys. Dashboard load priority: Supabase first → cache fallback only on failure. PIN login and session restore clear stale state before fetch. "Add Again" same priority fix. | `main.py`, `views/customer.py`, `PROJECT_MEMORY.md` | Complete — pushed CI |
 | June 10, 2026 | Premium Brand Landing Page — Redesigned login screen as jewellery-brand landing page. Cream bg, gold accents, maroon CTA, logo, PIN login on-page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage text, small Admin/Labour links. Old `view_login()` replaced entirely. | `views/auth.py`, `PROJECT_MEMORY.md` | Complete |

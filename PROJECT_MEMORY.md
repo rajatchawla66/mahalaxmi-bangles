@@ -104,7 +104,13 @@
 | Location | Version | Used For |
 |----------|---------|----------|
 | `C:\Users\rajat\flutter\3.29.2\` | 3.29.2 | Auto-downloaded by Flet CLI (local) — **broken for APK builds** |
-| CI (via `subosito/flutter-action@v2`) | 3.24.0 | GitHub Actions — **works** |
+| CI (via `subosito/flutter-action@v2`) | 3.24.0 | CI step — **ineffective** — Flet overrides with 3.29.2 |
+
+### Why Flutter 3.24.0 pin in CI is ineffective
+
+Flet CLI 0.28.3 (`flet_cli/commands/build.py:39`) hardcodes `MINIMAL_FLUTTER_VERSION = version.Version("3.29.2")`. The `flutter_version_valid()` method at line 707-730 checks `flutter_version.major == 3 AND flutter_version.minor == 29`. Flutter 3.24.0 (minor=24) fails this check, so Flet **always downloads Flutter 3.29.2** into `$HOME/flutter/3.29.2/` regardless of what's on PATH. There is no `FLET_FLUTTER_HOME` env var in Flet 0.28.3.
+
+The 3.24.0 pin is kept only as a fallback in case Flet's own download mechanism changes. CI builds actually use Flutter 3.29.2 (downloaded by Flet), which somehow works on Linux runners despite the native-assets issue that breaks Windows builds.
 
 ### Build Environment Hacks (PowerShell)
 
@@ -249,6 +255,18 @@ Exit: closes dialog → calls page.window.destroy()
 ---
 
 ## 7. BUG HISTORY LOG
+
+---
+
+### BUG-018: CI Flutter download corrupted — EOFError during flet build
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **Symptom** | `EOFError: Compressed file ended before the end-of-stream marker was reached` during `flet build apk`. Flet downloads its own Flutter 3.29.2 but the ~700MB archive is truncated. |
+| **Root Cause** | Flet CLI 0.28.3 (`flet_cli/commands/build.py:39`) hardcodes `MINIMAL_FLUTTER_VERSION = "3.29.2"`. The `flutter_version_valid()` method (line 707-730) requires **exact major.minor match** (`major==3 AND minor==29`). Flutter 3.24.0 (pinned in CI) fails this check. Flet downloads Flutter 3.29.2 every build. The download from `storage.googleapis.com` was truncated — transient GitHub runner network issue. |
+| **Fix** | Wrapped `flet build apk` in a retry loop (max 2 attempts). On failure, cleans `$HOME/flutter/` and `$HOME/flutter_*.{zip,tar.xz}` partial downloads, then retries. `download_with_progress()` always re-downloads (no caching), so retry is safe. |
+| **Files** | `.github/workflows/build_apk.yml` |
+| **Lesson** | Flet 0.28.3 ALWAYS overrides the system Flutter with its own download of 3.29.2. The `subosito/flutter-action` pin to 3.24.0 is ineffective — kept only as fallback. Any network glitch during the large download can corrupt the archive. Retry with cleanup is the safest fix. |
 
 ---
 
@@ -519,12 +537,15 @@ All APK builds run via **GitHub Actions CI**. Local Windows builds are broken an
 | OS | ubuntu-latest |
 | Python | 3.11 |
 | Flet | 0.28.3 |
-| Flutter | 3.24.0 (pinned via `subosito/flutter-action@v2`) |
+| Flutter | 3.24.0 (pinned via `subosito/flutter-action@v2`) — **ineffective**, Flet overrides with 3.29.2 |
 | Java | 17 (Temurin) |
 | Signing | Committed `android/debug.keystore` (deterministic, same key every build) |
 
 ### Workflow file
-`.github/workflows/build_apk.yml` — do not modify unless you understand the Flutter native-assets constraint.
+`.github/workflows/build_apk.yml` — do not modify unless you understand the Flutter native-assets constraint and Flet's hardcoded `MINIMAL_FLUTTER_VERSION = "3.29.2"`.
+
+### Build retry
+The Build APK step has an automatic retry (max 2 attempts). If `flet build apk` fails (e.g. corrupted Flutter download), the script cleans `$HOME/flutter/` and retries. This avoids transient runner storage/network issues.
 
 ---
 
@@ -596,6 +617,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | BUG-018 — CI Flutter download corruption fix. `flet build apk` wrapped in retry loop (max 2 attempts). Clean `$HOME/flutter/` on retry. Investigation revealed Flet 0.28.3 always downloads Flutter 3.29.2 — the 3.24.0 pin is ineffective. | `.github/workflows/build_apk.yml`, `PROJECT_MEMORY.md` | Complete — pushed |
 | June 10, 2026 | R1 fix — Customer PIN login network error messaging: `get_customer_by_pin()` uses `raise_errors=True`; invalid PIN, blocked, and connection errors each have distinct messages. | db.py, views/customer.py, PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Timezone fix — Customer last login shows IST instead of UTC. Helper `format_ist_datetime()` parses ISO timestamp, converts to Asia/Kolkata. Shows "Never" for None. | views/customers.py | Complete — pushed, verified |
 | June 10, 2026 | App logo — added `assets/icon.png`, configured adaptive icon `[tool.flet.android]` in pyproject.toml (background #000000, foreground from icon file). | pyproject.toml, assets/icon.png (new) | Complete — pushed, verified |

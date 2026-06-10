@@ -63,17 +63,35 @@ jobs:
         run: |
           [ -n "$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD" ] || { echo "Missing ANDROID_KEYSTORE_PASSWORD secret"; exit 1; }
           [ -n "$FLET_ANDROID_SIGNING_KEY_PASSWORD" ] || { echo "Missing ANDROID_KEY_PASSWORD secret"; exit 1; }
-          flet build apk \
-            --project "Mahalaxmi Bangles" \
-            --product "Mahalaxmi Bangles" \
-            --build-number ${{ steps.version.outputs.build_number }} \
-            --build-version "${{ steps.version.outputs.version }}" \
-            --arch arm64-v8a \
-            --skip-flutter-doctor \
-            --android-signing-key-store $HOME/release.keystore \
-            --android-signing-key-store-password "$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD" \
-            --android-signing-key-password "$FLET_ANDROID_SIGNING_KEY_PASSWORD" \
-            --android-signing-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}"
+
+          MAX_RETRIES=2
+          RETRY=0
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            RETRY=$((RETRY + 1))
+            echo "--- Build attempt $RETRY of $MAX_RETRIES ---"
+            if flet build apk \
+              --project "Mahalaxmi Bangles" \
+              --product "Mahalaxmi Bangles" \
+              --build-number ${{ steps.version.outputs.build_number }} \
+              --build-version "${{ steps.version.outputs.version }}" \
+              --arch arm64-v8a \
+              --skip-flutter-doctor \
+              --android-signing-key-store $HOME/release.keystore \
+              --android-signing-key-store-password "$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD" \
+              --android-signing-key-password "$FLET_ANDROID_SIGNING_KEY_PASSWORD" \
+              --android-signing-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}"; then
+              echo "--- Build succeeded on attempt $RETRY ---"
+              break
+            fi
+            if [ $RETRY -lt $MAX_RETRIES ]; then
+              echo "Build failed on attempt $RETRY — cleaning partial Flutter download and retrying..."
+              rm -rf "$HOME/flutter"
+              rm -f "$HOME"/flutter_*.zip "$HOME"/flutter_*.tar.xz
+            else
+              echo "Build failed after $MAX_RETRIES attempts."
+              exit 1
+            fi
+          done
 
       - name: Verify APK signature fingerprint
         run: |

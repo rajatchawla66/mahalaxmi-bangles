@@ -152,41 +152,33 @@ def view_login(page: ft.Page):
                 # Top spacer
                 ft.Container(height=24),
 
-                # Hero section: watermark background + centered title
+                # Watermark logo
                 ft.Container(
-                    height=180,
-                    content=ft.Stack([
-                        ft.Container(
-                            expand=True,
-                            alignment=ft.alignment.center,
-                            content=ft.Image(
-                                src="assets/watermark.png",
-                                width=180, height=180,
-                                opacity=0.12,
-                                fit=ft.ImageFit.CONTAIN,
-                            ),
-                        ),
-                        ft.Container(
-                            expand=True,
-                            alignment=ft.alignment.center,
-                            content=ft.Column(
-                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                spacing=4,
-                                controls=[
-                                    ft.Text(
-                                        "Mahalaxmi Bangles",
-                                        size=26, weight="bold", color=_DARK,
-                                        text_align=ft.TextAlign.CENTER,
-                                    ),
-                                    ft.Text(
-                                        "Wholesale Bridal Chuda Manufacturer",
-                                        size=12, color=_MUTED,
-                                        text_align=ft.TextAlign.CENTER,
-                                    ),
-                                ],
-                            ),
-                        ),
-                    ]),
+                    height=140,
+                    alignment=ft.alignment.center,
+                    content=ft.Image(
+                        src="assets/watermark.png",
+                        height=140, width=140,
+                        opacity=1.0,
+                        fit=ft.ImageFit.CONTAIN,
+                    ),
+                ),
+                ft.Container(height=6),
+
+                # Firm name
+                ft.Text(
+                    "Mahalaxmi Bangles",
+                    size=26, weight=ft.FontWeight.W_300,
+                    color=_DARK,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.Container(height=4),
+
+                # Subtitle
+                ft.Text(
+                    "Wholesale Bridal Chuda Manufacturer",
+                    size=12, color=_MUTED,
+                    text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Container(height=20),
 

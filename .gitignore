@@ -16,3 +16,5 @@ customer_session.json
 ci_runs.json
 .flet/
 .streamlit/
+*.keystore
+*.jks

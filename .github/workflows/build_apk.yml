@@ -44,10 +44,9 @@ jobs:
         run: |
           yes | flutter doctor --android-licenses || true
 
-      - name: Use committed debug keystore
+      - name: Decode release keystore from secrets
         run: |
-          mkdir -p ~/.android
-          cp android/debug.keystore ~/.android/debug.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > $HOME/release.keystore
 
       - name: Read version and set build vars
         id: version
@@ -55,6 +54,7 @@ jobs:
           VER=$(cat version.txt)
           echo "version=$VER" >> $GITHUB_OUTPUT
           echo "build_number=$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
+          echo "Build number: $(git rev-list --count HEAD)"
 
       - name: Build APK
         run: |
@@ -64,7 +64,21 @@ jobs:
             --build-number ${{ steps.version.outputs.build_number }} \
             --build-version "${{ steps.version.outputs.version }}" \
             --arch arm64-v8a \
-            --skip-flutter-doctor
+            --skip-flutter-doctor \
+            --android-signing-key-store $HOME/release.keystore \
+            --android-signing-key-store-password "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            --android-signing-key-password "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            --android-signing-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}"
+
+      - name: Verify APK signature fingerprint
+        run: |
+          APK=$(find build/apk -name "*.apk" -type f | head -1)
+          if [ -n "$APK" ]; then
+            echo "=== APK signer SHA256 ==="
+            keytool -printcert -jarfile "$APK" 2>/dev/null | grep -i "SHA256" || echo "Could not extract fingerprint"
+          else
+            echo "No APK found for verification"
+          fi
 
       - name: Find APK file
         run: find . -name "*.apk" -type f

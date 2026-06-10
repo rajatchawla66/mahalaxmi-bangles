@@ -601,6 +601,7 @@ chcp 65001
 | June 10, 2026 | versionCode fix — added `fetch-depth: 0` to CI checkout so `git rev-list --count HEAD` returns actual commit count instead of always 1. | .github/workflows/build_apk.yml | Pushed, pending verification (blocked by BUG-011 signing issue) |
 | June 10, 2026 | Release Blocker Batch 1 — Fix 8 bugs: R2 (session mobile key mismatch), R3 (cart remove stale index), H1 (place_order redirect to dashboard), H2 (Add Again lazy-load catalogue), H3/H4 (admin status/delete check DB result), H5 (safe .get() on order fields), M5 (PIN uniqueness raise_errors), M6 (cache filter zero-price items). | views/customer.py, views/home.py, main.py, db.py | Complete |
 | June 10, 2026 | Pre-release regression audit (12 flows) — 30+ bugs found. Report added as Section 13. | PROJECT_MEMORY.md | Complete |
+| June 10, 2026 | Completed/Archive Orders feature — status_updated_at column, completed status, archive page, home filter, confirmed→completed action, settings entry. | db.py, views/home.py, views/archive.py (new), main.py, views/settings.py, PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Quick Add Again per item in My Orders | views/customer.py | Complete |
 | June 10, 2026 | Customer PIN Login System (Phases 1-3): db.py — customer CRUD functions (create/get/update/block/last_active) + 8-digit unique PIN auto-generation; views/customers.py (new) — Admin Manage Customers UI (search, add/edit dialog, block/unblock, copy PIN, PIN reveal on creation); views/settings.py — Manage Customers link in Account card; main.py — manage_customers route, customer_login route replaces customer_name_entry, state keys (customer_id, customer_shop_name), BACK_MAP entries, session restore, logout clears customer state; views/auth.py — customer button routes to customer_login; views/customer.py — view_customer_pin_login replaces view_customer_name_entry (8-digit PIN validation, db lookup, active check, session save, last_active_at update); session_helper.py — persists customer_id/customer_shop_name; sql/create_customers_table.sql for Supabase schema. | db.py, views/customers.py (new), views/settings.py, main.py, views/auth.py, views/customer.py, session_helper.py, sql/create_customers_table.sql (new), PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Order Status System (Phase 1 — Admin side): added `status='pending'` to create_order; added `set_order_status()` in db.py with status validation; added status badge + Confirm/Cancel buttons to admin Home order cards; confirmed/cancelled orders read-only; missing/null status treated as pending. Run `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';` in Supabase first. Bump to v1.0.17. | db.py, views/home.py, PROJECT_MEMORY.md, version.txt | Complete |
@@ -724,3 +725,23 @@ Full regression audit across 12 major flows. 30+ bugs found. Organized by severi
 | **What** | Created `release-signing-backup/` with keystore copy, fingerprints, recovery instructions, and security warnings. |
 | **Details** | SHA256: `EB:AA:3E:11:00:76:42:7E:A7:7E:08:61:67:DE:D0:11:5A:60:4D:58:0A:38:79:79:6D:8F:3B:80:C6:A2:4D:B6`. Added `release-signing-backup/` to `.gitignore`. Folder excluded from git. |
 | **Files** | `release-signing-backup/README_SIGNING_BACKUP.txt`, `release-signing-backup/signing_fingerprint.txt`, `release-signing-backup/recovery_instructions.txt`, `release-signing-backup/mahalaxmi-release.keystore`, `.gitignore` |
+
+---
+### FEATURE-001: Completed / Archived Orders
+
+| Field | Detail |
+|-------|--------|
+| **Date** | June 10, 2026 |
+| **What** | Order status system Phase 2 — completed status + archive for terminal states (completed & cancelled). Hidden from Home dashboard. Accessible via Settings → Archive Orders. |
+| **DB changes** | `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ DEFAULT now()`. `set_order_status()` accepts `"completed"` and updates `status_updated_at`. `create_order()` sets initial `status_updated_at`. New `get_archived_orders()` fetches completed+cancelled with items, sorted by `status_updated_at.desc.nullslast`. |
+| **Status flow** | `pending → confirmed → completed` (terminal); `pending → cancelled` (terminal). Home: only pending & confirmed shown. Archive: completed & cancelled shown, read-only, tap → order detail. |
+| **Home filter** | `views/home.py:71-73` — `_build_order_cards()` skips orders with status in (`completed`, `cancelled`) at top of loop. `orders_cache` unchanged (still contains all orders). |
+| **Confirmed action** | `views/home.py:187-192` — confirmed orders get a "Mark Completed" popup menu action (same `make_status_handler` pattern). |
+| **New file** | `views/archive.py` — `view_orders_archive()` renders archived order cards (no edit/delete actions, status badge visible, tap → order_detail). Empty state: "No archived orders". |
+| **Settings entry** | `views/settings.py:156-163` — "Archive Orders" ListTile in Account card between Manage Customers and Logout. |
+| **Route** | `"orders_archive"` → BACK_MAP returns to `"settings"`. Render routing in main.py. |
+| **SQL migration** | `ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ DEFAULT now();` — run in Supabase SQL Editor. |
+| **Future** | `status_updated_at` column ready for 30-day auto-delete. Do NOT implement auto-delete yet. |
+| **Files** | `db.py`, `views/home.py`, `views/archive.py` (new), `main.py`, `views/settings.py`, `PROJECT_MEMORY.md` |
+
+

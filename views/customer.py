@@ -38,19 +38,19 @@ def view_customer_pin_login(page: ft.Page):
         try:
             customer = db.get_customer_by_pin(pin)
         except Exception as e:
-            error_text.value = f"Connection error: {e}"
+            error_text.value = "Unable to connect. Please check your internet connection and try again."
             error_text.visible = True
             page.update()
             return
 
         if not customer:
-            error_text.value = "Invalid PIN — customer not found"
+            error_text.value = "Invalid PIN. Please check and try again."
             error_text.visible = True
             page.update()
             return
 
         if not customer.get("is_active", True):
-            error_text.value = "This account has been blocked. Contact the shop."
+            error_text.value = "Your account is blocked. Please contact Mahalaxmi Bangles."
             error_text.visible = True
             page.update()
             return
@@ -105,7 +105,7 @@ def view_customer_dashboard(page: ft.Page):
     if state.get("customer_full_catalogue") is None:
         if cache.is_cache_available():
             raw = cache.get_cached_catalog()
-            state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1)]
+            state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
             state["customer_categories"] = cache.get_cached_categories()
         else:
             state["customer_full_catalogue"] = db.get_customer_catalogue()
@@ -916,8 +916,12 @@ def view_cart(page: ft.Page):
         line_total = up * qty
         total_amount += line_total
         
-        def remove_it(e, i=idx):
-            state['customer_cart'].pop(i)
+        def remove_it(e, item_no=it_no):
+            cart = state.get('customer_cart', [])
+            for i, ci in enumerate(cart):
+                if ci.get('item_number') == item_no:
+                    cart.pop(i)
+                    break
             page.app_render()
 
         item_rows.append(
@@ -941,7 +945,7 @@ def view_cart(page: ft.Page):
         if order_id:
             state['customer_cart'] = []
             page.snack(f"✅ Order #{order_id} placed successfully!")
-            page.go("login")
+            page.go("customer_dashboard")
         else:
             page.snack("❌ Failed to place order", ft.Colors.RED_400)
 
@@ -1027,7 +1031,17 @@ def view_customer_my_orders(page: ft.Page):
                     up = it.get("unit_price", 0)
 
                     def on_add_again(e, order_item=it):
-                        catalogue = state.get("customer_full_catalogue") or []
+                        catalogue = state.get("customer_full_catalogue")
+                        if catalogue is None:
+                            try:
+                                if cache.is_cache_available():
+                                    raw = cache.get_cached_catalog()
+                                    state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
+                                else:
+                                    state["customer_full_catalogue"] = db.get_customer_catalogue()
+                                catalogue = state["customer_full_catalogue"]
+                            except Exception:
+                                catalogue = []
                         match = None
                         for ci in catalogue:
                             if ci.get("item_number") == order_item.get("item_number"):

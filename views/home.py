@@ -68,6 +68,10 @@ def view_home(page: ft.Page):
             return cards
 
         for order in orders_list:
+            raw_status = order.get("status")
+            order_status = (raw_status or "pending").lower()
+            if order_status in ("completed", "cancelled"):
+                continue
             line_items = order.get("order_items", [])
             cats_in_order = list(set(it.get("category", "Chuda") for it in line_items))
             cat_color = page.CATEGORY_COLORS.get(cats_in_order[0], ft.Colors.GREY_400) if cats_in_order else ft.Colors.GREY_400
@@ -106,7 +110,12 @@ def view_home(page: ft.Page):
                         page.update()
                     def confirm_delete(e):
                         import db
-                        db.delete_order(oid)
+                        ok = db.delete_order(oid)
+                        if not ok:
+                            snack(f"❌ Failed to delete Order #{oid}", ft.Colors.RED_400)
+                            dlg.open = False
+                            page.update()
+                            return
                         snack(f"✅ Order #{oid} deleted!")
                         if "orders_cache" in state:
                             new_cache = []
@@ -137,7 +146,10 @@ def view_home(page: ft.Page):
             def make_status_handler(oid, new_status):
                 def _h(_):
                     import db
-                    db.set_order_status(oid, new_status)
+                    ok = db.set_order_status(oid, new_status)
+                    if not ok:
+                        snack(f"❌ Failed to update Order #{oid}", ft.Colors.RED_400)
+                        return
                     label = new_status.capitalize()
                     snack(f"{'✅' if new_status == 'confirmed' else '🛑'} Order #{oid} {label}!")
                     if "orders_cache" in state:
@@ -156,20 +168,20 @@ def view_home(page: ft.Page):
             # Title row with inline status badge
             title_controls = [
                 status_badge,
-                ft.Text(f"Order #{order_id}  •  {order['order_date']}", size=13, weight="bold"),
+                ft.Text(f"Order #{order_id}  •  {order.get('order_date', '')}", size=13, weight="bold"),
             ]
             title_row = ft.Row(spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER, controls=title_controls)
 
             # Subtitle (no status badge — moved to title)
             subtitle_controls = []
             if is_admin:
-                subtitle_controls.append(ft.Text(order["customer_name"], size=12, color=ft.Colors.GREY_700))
+                subtitle_controls.append(ft.Text(order.get("customer_name", ""), size=12, color=ft.Colors.GREY_700))
             if cat_chips:
                 subtitle_controls.append(ft.Row(cat_chips, spacing=4, wrap=True))
             if is_admin:
-                subtitle_controls.append(ft.Text(f"₹{order['total_amount']:,.2f}", size=13, weight="bold", color=ft.Colors.INDIGO_700))
+                subtitle_controls.append(ft.Text(f"₹{order.get('total_amount', 0):,.2f}", size=13, weight="bold", color=ft.Colors.INDIGO_700))
 
-            # Trailing: popup menu for pending admin orders; chevron for labour
+            # Trailing: popup menu for pending/confirmed admin orders; chevron for labour
             if is_admin and status == "pending":
                 popup_items = [
                     ft.PopupMenuItem(text="Confirm", icon=ft.Icons.CHECK_CIRCLE, on_click=make_status_handler(order_id, "confirmed")),
@@ -177,6 +189,11 @@ def view_home(page: ft.Page):
                     ft.PopupMenuItem(text="Delete", icon=ft.Icons.DELETE, on_click=make_delete_handler(order_id)),
                 ]
                 trailing = ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, icon_color=ft.Colors.GREY_600, items=popup_items)
+            elif is_admin and status == "confirmed":
+                trailing = ft.PopupMenuButton(
+                    icon=ft.Icons.MORE_VERT, icon_color=ft.Colors.GREY_600,
+                    items=[ft.PopupMenuItem(text="Mark Completed", icon=ft.Icons.CHECK_CIRCLE, on_click=make_status_handler(order_id, "completed"))],
+                )
             elif not is_admin:
                 trailing = ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400)
             else:

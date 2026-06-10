@@ -154,6 +154,14 @@ def view_settings(page: ft.Page):
                     ),
                     ft.Divider(height=1),
                     ft.ListTile(
+                        leading=ft.Icon(ft.Icons.ARCHIVE, color=ft.Colors.AMBER_700),
+                        title=ft.Text("Archive Orders", weight=ft.FontWeight.W_500),
+                        subtitle=ft.Text("View completed and cancelled orders"),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                        on_click=lambda _: go("orders_archive")
+                    ),
+                    ft.Divider(height=1),
+                    ft.ListTile(
                         leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
                         title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),
                         on_click=logout

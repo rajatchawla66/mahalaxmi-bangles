@@ -465,7 +465,9 @@ def create_order(header: dict, line_items: list) -> int:
         "total_amount": header.get("total_amount", 0),
         "source": header.get("source", "admin"),
         "customer_mobile": header.get("customer_mobile"),
+        "customer_id": header.get("customer_id"),
         "status": "pending",
+        "status_updated_at": datetime.datetime.utcnow().isoformat(),
     }
     result = _post("orders", order_data)
     if not result:
@@ -555,10 +557,24 @@ def get_order_items(order_id: int) -> list:
     return _get("order_items", f"order_id=eq.{order_id}")
 
 
+def get_orders_by_customer_id(customer_id: int) -> list:
+    return _get("orders", f"customer_id=eq.{customer_id}&select=*,order_items(*)&order=order_id.desc")
+
+
 def set_order_status(order_id: int, status: str) -> bool:
-    if status not in ("pending", "confirmed", "cancelled"):
+    if status not in ("pending", "confirmed", "cancelled", "completed"):
         return False
-    return _patch("orders", f"order_id=eq.{order_id}", {"status": status})
+    import datetime
+    return _patch("orders", f"order_id=eq.{order_id}", {
+        "status": status,
+        "status_updated_at": datetime.datetime.utcnow().isoformat(),
+    })
+
+
+def get_archived_orders() -> list:
+    """Fetch completed and cancelled orders with items, newest first."""
+    return _get("orders",
+        "status=in.(completed,cancelled)&select=*,order_items(*)&order=status_updated_at.desc.nullslast")
 
 
 # =============================================================
@@ -784,8 +800,12 @@ def _generate_pin() -> str:
 def generate_unique_pin() -> str:
     for _ in range(100):
         pin = _generate_pin()
-        if not _get("customers", f"pin=eq.{pin}"):
-            return pin
+        try:
+            rows = _get("customers", f"pin=eq.{pin}", raise_errors=True)
+            if not rows:
+                return pin
+        except Exception:
+            continue
     raise RuntimeError("Failed to generate unique PIN after 100 attempts")
 
 def create_customer(shop_name: str, owner_name: str = "", mobile: str = "", city: str = "", notes: str = "") -> dict | None:
@@ -807,7 +827,7 @@ def get_customers() -> list:
     return _get("customers", "order=created_at.desc")
 
 def get_customer_by_pin(pin: str) -> dict | None:
-    rows = _get("customers", f"pin=eq.{pin}")
+    rows = _get("customers", f"pin=eq.{pin}", raise_errors=True)
     return rows[0] if rows else None
 
 def get_customer_by_id(customer_id: int) -> dict | None:

@@ -14,7 +14,7 @@ Project layout:
 """
 
 from __future__ import annotations
-from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer, customers as v_customers
+from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer, customers as v_customers, archive as v_archive
 
 import os
 import shutil
@@ -483,7 +483,7 @@ async def main(page: ft.Page):
         elif role == "customer" or (role is None and session_data.get("name")):
             state["role"] = "customer"
             state["username"] = session_data.get("name") or session_data.get("username", "")
-            state["customer_mobile"] = session_data.get("mobile", "")
+            state["customer_mobile"] = session_data.get("customer_mobile") or session_data.get("mobile", "")
             state["customer_id"] = session_data.get("customer_id")
             state["customer_shop_name"] = session_data.get("customer_shop_name")
             state["current_page"] = "customer_dashboard"
@@ -506,12 +506,14 @@ async def main(page: ft.Page):
         "manage_customers": "settings",
         "karigar_slip": "order_detail",
         "sync_page": "settings",
+        "orders_archive": "settings",
         "customer_login": "login",
         "customer_dashboard": "customer_login",
         "customer_subcategories": "customer_dashboard",
         "customer_items": "customer_dashboard", # Dynamic in go_back
         "customer_search_results": "customer_dashboard",
         "cart": "customer_dashboard",
+        "customer_my_orders": "customer_dashboard",
     }
 
     # ============================================================
@@ -895,6 +897,7 @@ async def main(page: ft.Page):
                 snack(f"❌ Refresh failed: {ex}", ft.Colors.RED_400)
 
         _refresh_icon = ft.IconButton(ft.Icons.REFRESH, icon_color=ft.Colors.WHITE, tooltip="Refresh Catalogue", on_click=_customer_refresh)
+        _my_orders_icon = ft.IconButton(ft.Icons.RECEIPT_LONG, icon_color=ft.Colors.WHITE, tooltip="My Orders", on_click=lambda _: go("customer_my_orders"))
 
         body = None
         appbar = None
@@ -964,7 +967,7 @@ async def main(page: ft.Page):
                     right=5, top=5, visible=cart_count > 0
                 )
             ])
-            appbar.actions = [_refresh_icon, cart_stack] + appbar.actions[:1]
+            appbar.actions = [_my_orders_icon, _refresh_icon, cart_stack] + appbar.actions[:1]
             body = v_customer.view_customer_dashboard(page)
         elif cur == "customer_subcategories":
             cart_count = len(state.get("customer_cart", []))
@@ -1012,6 +1015,12 @@ async def main(page: ft.Page):
         elif cur == "cart":
             appbar = build_app_bar("Your Cart", show_back=True)
             body = v_customer.view_cart(page)
+        elif cur == "orders_archive":
+            appbar = build_app_bar("Archive Orders", show_back=True)
+            body = v_archive.view_orders_archive(page)
+        elif cur == "customer_my_orders":
+            appbar = build_app_bar("My Orders", show_back=True)
+            body = v_customer.view_customer_my_orders(page)
         else:
             body = ft.Text("Page not found")
 

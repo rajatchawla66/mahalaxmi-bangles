@@ -15,10 +15,88 @@ def view_settings(page: ft.Page):
     logout = page.logout
     # End context injection
 
-    def _save_margin(e):
+    items = ft.Column(spacing=2, controls=[
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_600),
+            title=ft.Text("Manage Categories", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("Add, edit, or remove item categories"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("manage_categories"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.PERCENT, color=ft.Colors.GREEN_700),
+            title=ft.Text("Margin", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("Set default pricing margin percentage"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("settings_margin"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.INVENTORY_2, color=ft.Colors.ORANGE_700),
+            title=ft.Text("Material Master", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("Manage raw material rates for costing"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("settings_materials"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.PEOPLE, color=ft.Colors.INDIGO_700),
+            title=ft.Text("Manage Customers", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("Add, edit, block customers and manage PINs"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("manage_customers"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.ARCHIVE, color=ft.Colors.AMBER_700),
+            title=ft.Text("Archive Orders", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("View completed and cancelled orders"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("orders_archive"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
+            leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
+            title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),
+            on_click=logout,
+        ),
+    ])
+
+    return ft.ListView(
+        expand=True,
+        padding=20,
+        spacing=20,
+        controls=[
+            ft.Card(
+                content=ft.Container(
+                    padding=ft.Padding(left=0, top=8, right=0, bottom=8),
+                    content=items,
+                )
+            ),
+        ]
+    )
+
+# MANAGE CATEGORIES VIEW (admin only)
+# ============================================================
+
+def view_settings_margin(page: ft.Page):
+    state = page.state
+    go = page.go
+    go_back = page.go_back
+    snack = page.snack
+    logout = page.logout
+    # End context injection
+
+    margin_tf = ft.TextField(
+        label="Default Margin %",
+        keyboard_type=ft.KeyboardType.NUMBER,
+        value=str(db.get_default_margin()),
+        hint_text="e.g. 30",
+    )
+
+    def save_margin(_):
         try:
-            # e.control.parent.controls[0] is the TextField
-            margin_tf = e.control.parent.controls[0]
             val = float(margin_tf.value)
             if db.save_default_margin(val):
                 snack("✅ Default margin saved.")
@@ -28,10 +106,37 @@ def view_settings(page: ft.Page):
             snack("❌ Invalid margin value.")
         page.update()
 
-    # --- Shared state for Material Master ---
-    materials_list = ft.Column(spacing=5)
+    return ft.ListView(
+        expand=True,
+        padding=20,
+        spacing=20,
+        controls=[
+            ft.Card(
+                content=ft.Container(
+                    padding=20,
+                    content=ft.Column(spacing=16, controls=[
+                        ft.Text("Default Margin %", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text("Set the default profit margin used in cost calculations.", size=12, color=ft.Colors.GREY_600),
+                        margin_tf,
+                        ft.FilledButton("💾 Save Margin", on_click=save_margin, height=44),
+                    ]),
+                ),
+            ),
+        ],
+    )
+
+
+def view_settings_materials(page: ft.Page):
+    state = page.state
+    go = page.go
+    go_back = page.go_back
+    snack = page.snack
+    logout = page.logout
+    # End context injection
+
     new_mat_name = ft.TextField(label="Material Name *", expand=2, height=45)
     new_mat_rate = ft.TextField(label="Rate", expand=1, height=45, keyboard_type=ft.KeyboardType.NUMBER)
+    materials_list = ft.Column(spacing=5)
 
     def refresh_materials():
         mats = db.get_materials()
@@ -46,20 +151,20 @@ def view_settings(page: ft.Page):
                         refresh_materials()
                         page.update()
                     return _h
-                
+
                 materials_list.controls.append(
                     ft.ListTile(
                         title=ft.Text(m["name"]),
                         subtitle=ft.Text(f"Rs. {m['rate']} / {m['unit']}"),
                         trailing=ft.IconButton(
-                            ft.Icons.DELETE, 
-                            icon_color=ft.Colors.RED_400, 
-                            on_click=make_delete(m["id"])
-                        )
+                            ft.Icons.DELETE,
+                            icon_color=ft.Colors.RED_400,
+                            on_click=make_delete(m["id"]),
+                        ),
                     )
                 )
 
-    def add_material(e):
+    def add_material(_):
         n = (new_mat_name.value or "").strip()
         r_str = (new_mat_rate.value or "").strip()
         if not n:
@@ -79,98 +184,6 @@ def view_settings(page: ft.Page):
         page.update()
         new_mat_name.focus()
 
-    # --- Card 1: Catalogue & Categories ---
-    catalogue_card = ft.Card(
-        content=ft.Container(
-            padding=20,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Text("Catalogue & Categories", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Text("Add, edit, activate/deactivate categories and cover images.", size=12, color=ft.Colors.GREY_600),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_600),
-                        title=ft.Text("Manage Categories", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("Add, edit, or remove item categories"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("manage_categories")
-                    ),
-                ]
-            )
-        )
-    )
-
-    # --- Card 2: Materials & Pricing ---
-    pricing_card = ft.Card(
-        content=ft.Container(
-            padding=20,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Text("Materials & Pricing", size=18, weight=ft.FontWeight.BOLD),
-                    ft.Text("Manage costing defaults and raw material rates.", size=12, color=ft.Colors.GREY_600),
-                    ft.Row([
-                        ft.TextField(
-                            label="Default Margin %",
-                            keyboard_type=ft.KeyboardType.NUMBER,
-                            value=str(db.get_default_margin()),
-                            width=160,
-                            hint_text="e.g. 30"
-                        ),
-                        ft.FilledButton(
-                            "💾 Save Margin",
-                            on_click=lambda e: _save_margin(e)
-                        )
-                    ]),
-                    ft.Divider(height=20),
-                    ft.Text("Material Master", size=16, weight=ft.FontWeight.W_600),
-                    ft.Text("Set rates here. Used in Cost Calculator.", size=11, color=ft.Colors.GREY_600),
-                    ft.Row([
-                        new_mat_name,
-                        new_mat_rate,
-                        ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600, on_click=add_material)
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Divider(height=20),
-                    materials_list
-                ]
-            )
-        )
-    )
-
-    # --- Card 3: Account ---
-    account_card = ft.Card(
-        content=ft.Container(
-            padding=20,
-            content=ft.Column(
-                spacing=5,
-                controls=[
-                    ft.Text("Account", size=18, weight=ft.FontWeight.BOLD),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.PEOPLE, color=ft.Colors.INDIGO_700),
-                        title=ft.Text("Manage Customers", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("Add, edit, block customers and manage PINs"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("manage_customers")
-                    ),
-                    ft.Divider(height=1),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.ARCHIVE, color=ft.Colors.AMBER_700),
-                        title=ft.Text("Archive Orders", weight=ft.FontWeight.W_500),
-                        subtitle=ft.Text("View completed and cancelled orders"),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _: go("orders_archive")
-                    ),
-                    ft.Divider(height=1),
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.RED_500),
-                        title=ft.Text("Logout", color=ft.Colors.RED_500, weight=ft.FontWeight.W_500),
-                        on_click=logout
-                    ),
-                ]
-            )
-        )
-    )
-
     refresh_materials()
 
     return ft.ListView(
@@ -178,14 +191,25 @@ def view_settings(page: ft.Page):
         padding=20,
         spacing=20,
         controls=[
-            catalogue_card,
-            pricing_card,
-            account_card,
-        ]
+            ft.Card(
+                content=ft.Container(
+                    padding=20,
+                    content=ft.Column(spacing=12, controls=[
+                        ft.Text("Material Master", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text("Set raw material rates used in the Cost Calculator.", size=12, color=ft.Colors.GREY_600),
+                        ft.Row([
+                            new_mat_name,
+                            new_mat_rate,
+                            ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600, on_click=add_material),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Divider(height=1),
+                        materials_list,
+                    ]),
+                ),
+            ),
+        ],
     )
 
-# MANAGE CATEGORIES VIEW (admin only)
-# ============================================================
 
 def view_manage_categories(page: ft.Page):
     state = page.state

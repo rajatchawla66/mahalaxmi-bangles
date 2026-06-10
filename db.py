@@ -678,14 +678,6 @@ def set_setting(key: str, value: str) -> bool:
     return True
 
 
-def get_default_margin() -> float:
-    """Get the default margin percentage."""
-    try:
-        return float(get_setting("default_margin_percent", "30"))
-    except (ValueError, TypeError):
-        return 30.0
-
-
 def get_labour_cost() -> float:
     """Get the flat labour cost."""
     try:

@@ -506,6 +506,8 @@ async def main(page: ft.Page):
         "settings": "home",
         "manage_categories": "settings",
         "manage_customers": "settings",
+        "settings_margin": "settings",
+        "settings_materials": "settings",
         "karigar_slip": "order_detail",
         "sync_page": "settings",
         "orders_archive": "settings",
@@ -959,6 +961,12 @@ async def main(page: ft.Page):
         elif cur == "manage_customers":
             appbar = build_app_bar("Manage Customers", show_back=True)
             body = v_customers.view_manage_customers(page)
+        elif cur == "settings_margin":
+            appbar = build_app_bar("Default Margin %", show_back=True)
+            body = v_settings.view_settings_margin(page)
+        elif cur == "settings_materials":
+            appbar = build_app_bar("Material Master", show_back=True)
+            body = v_settings.view_settings_materials(page)
         elif cur == "karigar_slip":
             appbar = build_app_bar("Karigar Slip", show_back=True)
             body = v_orders.view_karigar_slip(page)

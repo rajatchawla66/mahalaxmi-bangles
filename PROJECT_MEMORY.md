@@ -165,10 +165,10 @@ Flutter 3.29.2 ships Dart 3.10+ which enforces `--enable-experiment=native-asset
 ### Navigation System
 
 ```
-Login (Select Dashboard)
-  ├── Admin → home
-  ├── Labour → home
-  └── Customer → customer_login → customer_dashboard
+Login (Premium Brand Landing Page)
+  ├── Customer PIN → customer_dashboard
+  ├── Admin (small link) → home
+  └── Labour (small link) → home
 
 Forward Navigation (go):
   - Pushes current page to nav_history (stack)
@@ -498,6 +498,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Offline Sync UI removed — Sync icon removed from Admin AppBar; Data & Sync card removed from Settings. `view_sync_page()`, route, BACK_MAP, and `cache.py` kept intact as hidden developer fallback.
 - Order Status System (Phase 1) — Admin side: `status` column added to orders table; status badge (pending/confirmed/cancelled) on admin Home cards; Confirm/Cancel actions for pending orders; read-only for confirmed/cancelled. `set_order_status()` in db.py.
 - Customer PIN Login System (Phases 1-3) — Admin Manage Customers page (add/edit/block, copy PIN, search). 8-digit PIN auto-generation with collision retry. Customer PIN login replaces free-text name entry. `customer_id`/`customer_shop_name` in state + session. Session persists PIN login across restarts. `sql/create_customers_table.sql` for Supabase schema.
+- Premium Brand Landing Page — Redesigned login screen as premium jewellery-brand landing page. Cream background, gold accents, maroon CTA, centered layout with logo/firm name/subtitle, gold ornamental dividers (`ft.Row` with gold lines + ✦), GST card, PIN login directly on landing page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage trust container, small Admin/Labour text links. Old `view_login()` replaced entirely. `customer_login` route preserved as fallback.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -617,6 +618,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 10, 2026 | Premium Brand Landing Page — Redesigned login screen as jewellery-brand landing page. Cream bg, gold accents, maroon CTA, logo, PIN login on-page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage text, small Admin/Labour links. Old `view_login()` replaced entirely. | `views/auth.py`, `PROJECT_MEMORY.md` | Complete |
 | June 10, 2026 | BUG-018 — CI Flutter download corruption fix. `flet build apk` wrapped in retry loop (max 2 attempts). Clean `$HOME/flutter/` on retry. Investigation revealed Flet 0.28.3 always downloads Flutter 3.29.2 — the 3.24.0 pin is ineffective. | `.github/workflows/build_apk.yml`, `PROJECT_MEMORY.md` | Complete — pushed |
 | June 10, 2026 | R1 fix — Customer PIN login network error messaging: `get_customer_by_pin()` uses `raise_errors=True`; invalid PIN, blocked, and connection errors each have distinct messages. | db.py, views/customer.py, PROJECT_MEMORY.md | Complete |
 | June 10, 2026 | Timezone fix — Customer last login shows IST instead of UTC. Helper `format_ist_datetime()` parses ISO timestamp, converts to Asia/Kolkata. Shows "Never" for None. | views/customers.py | Complete — pushed, verified |

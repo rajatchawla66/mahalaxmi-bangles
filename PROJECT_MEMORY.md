@@ -574,6 +574,9 @@ Exit: closes dialog → calls page.window.destroy()
 - Order Form Phase A — No image preview in cart rows, compact customer card (full-width fields), single compact summary row (Items | Sets | Amount), mode badge, dead code removed.
 - Order Form Phase B — Packing structure fully removed from UI/save/slips/PDF/DB layer. Sticky save button (always visible at bottom). Visible red Remove button per item. Tighter item row spacing.
 - Order Form Phase C — Image thumbnail (64×64, rounded) appears after item selection with placeholder icon fallback. Smart Add Item: mixed order opens category picker dialog that pre-selects category in the new row. Sticky bottom bar with outlined [+ Add Item] + filled [Save Order] always visible.
+- Labour Production Checklist V1 — per-size status toggle (pending→prepared→not_available→pending), image thumbnails, progress summary, JSONB column in order_items.
+- Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
+- Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -693,8 +696,9 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
-| June 11, 2026 | Order Form Phase C — Image thumbnail (64×64) after item selection with placeholder fallback; smart Add Item for mixed order (category picker dialog pre-selects category); sticky bottom bar with [+ Add Item] + [Save Order] side-by-side; Add Item button removed from items header. | `views/orders.py` | Complete — pushed `62b0d02` |
-| June 11, 2026 | Order Form Phase B — Full packing system removal (packing_dd, packing_structure from save/reload/detail/slips/PDF/DB), sticky save button (ListView + save_bar Column wrapper), visible Remove button (TextButton replacing IconButton), item row spacing tightened (10→6), dead PACKING_OPTIONS removed from utils.py and main.py. Zero Python references to packing_structure remain. DB column still present in Supabase (harmless — never read). | `views/orders.py`, `db.py`, `slip_pdf_generator.py`, `utils.py`, `main.py`, `PROJECT_MEMORY.md` | Complete — committing |
+| June 11, 2026 | Admin Order Detail visual redesign — per-size production status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), 64px product image thumbnails, category group headers, per-item pricing, production summary at top. Labour text rendering unchanged. Replaced ft.Card with ft.Container for admin. | `views/orders.py` | Complete — pushed |
+| June 11, 2026 | Labour Production Checklist V1 — new views/labour.py with per-size status toggle, image thumbnails, progress summary. SQL migration file for JSONB column. Role-aware buttons in order detail. Admin read-only production status in order detail text. | `views/labour.py` (new), `views/orders.py`, `db.py`, `main.py`, `sql/migration_add_production_status.sql` (new) | Complete — pushed `b38fbfe` |
+| June 11, 2026 | Admin Home production summary — per-order production progress on admin order cards (Production: ✅ 3/10 ⚠ 1). Uses existing embedded order_items data, no new queries. | `views/home.py` | Complete — pushed |
 | June 11, 2026 | Order Form Phase A — Removed 100×100 image preview from cart rows, restructured customer card layout (full-width name, date+packing row, full-width notes), compact summary (single bordered row replacing 3 stat cards), mode badge (Mixed/Single), removed dead `_stat_card_wrap()`, removed stale PACKING_OPTIONS from main.py (kept in utils.py). | `views/orders.py`, `main.py` | Complete — pushed |
 | June 11, 2026 | BUG-024 — Order form dropdowns not firing + missing return controls. Changed on_select→on_change for all 3 dropdowns (item_dd, row_cat_dd, color_dd). Added missing `return controls` in build_category_fields(). | `views/orders.py`, `main.py` | Complete — pushed `c4f0dd2` |
 | June 11, 2026 | BUG-023 — Order form layout starvation after ft.Card→ft.Container. Wrapped 3 cards in ft.Column(expand=True). | `views/orders.py` | Complete — pushed `6c5a14d` |

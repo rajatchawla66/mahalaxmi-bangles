@@ -736,6 +736,9 @@ def view_order_detail(page: ft.Page):
     # Nested items are already in order["order_items"]
     line_items = order.get("order_items", [])
 
+    # Image lookup for admin visual cards
+    image_lookup = db.get_image_lookup() if is_admin else {}
+
     # Header
     header_controls = [
         ft.Text(f"Order #{order['order_id']}", size=18, weight="bold"),
@@ -762,111 +765,232 @@ def view_order_detail(page: ft.Page):
             category_groups[cat] = []
         category_groups[cat].append(it)
 
-    items_blocks = []
-    grand_total_qty = 0
+    def _parse_ps(raw_ps):
+        if not raw_ps or raw_ps == {}:
+            return {}
+        if isinstance(raw_ps, str):
+            try:
+                return json.loads(raw_ps)
+            except Exception:
+                return {}
+        if isinstance(raw_ps, dict):
+            return raw_ps
+        return {}
 
-    for cat in sorted(category_groups.keys()):
-        cat_items = category_groups[cat]
-        cat_color = page.CATEGORY_COLORS.get(cat, ft.Colors.GREY_400)
-        cat_rows = [
-            ft.Container(
-                padding=ft.Padding(left=6, right=6, top=3, bottom=3),
-                bgcolor=cat_color,
-                border_radius=4,
-                content=ft.Text(f"{cat.replace('_', ' ')} ({len(cat_items)} items)",
-                                size=12, weight="bold", color=ft.Colors.WHITE),
-            )
-        ]
-
-        for it in cat_items:
-            item_no = it.get("item_number", "—")
-            unit_price = it.get("unit_price", 0)
-            attr_parts = []
-
-            sizes_data = [
-                ("2.2", it.get("qty_2_2", 0)), ("2.4", it.get("qty_2_4", 0)),
-                ("2.6", it.get("qty_2_6", 0)), ("2.8", it.get("qty_2_8", 0)),
-                ("2.10", it.get("qty_2_10", 0)),
-            ]
-            total_sets = sum(q for _, q in sizes_data)
-
-            if total_sets > 0:
-                grand_total_qty += total_sets
-                size_str = " | ".join(f"{s}:{q}" for s, q in sizes_data if q > 0)
-                attr_parts.append(f"Sets: {total_sets}")
-                if size_str:
-                    attr_parts.append(size_str)
-                line_total = total_sets * unit_price
-            else:
-                qty = it.get("quantity") or 0
-                try:
-                    qty_val = float(qty)
-                except ValueError:
-                    qty_val = 0
-                grand_total_qty += int(qty_val) if qty_val.is_integer() else qty_val
-                
-                unit = it.get("unit") or "pieces"
-                if cat == "Raw_Material":
-                    attr_parts.append(f"Qty: {qty} {unit}")
-                else:
-                    attr_parts.append(f"Qty: {qty}")
-                line_total = qty_val * unit_price
-
-            # Common attributes (Color, Grind, Box, Notes)
-            if it.get("color"):
-                attr_parts.append(f"Color: {it['color']}")
-            if it.get("grind_type"):
-                attr_parts.append(f"Grind: {it['grind_type']}")
-            if it.get("box_type"):
-                attr_parts.append(f"Box: {it['box_type']}")
-            if it.get("notes"):
-                attr_parts.append(f"Notes: {it['notes']}")
-
-            # Production status read-only (admin)
-            raw_ps = it.get("production_status")
-            if raw_ps and raw_ps != {}:
-                if isinstance(raw_ps, str):
-                    try:
-                        raw_ps = json.loads(raw_ps)
-                    except Exception:
-                        raw_ps = {}
-                if isinstance(raw_ps, dict):
-                    done = sum(1 for v in raw_ps.values() if v == "prepared")
-                    na = sum(1 for v in raw_ps.values() if v == "not_available")
-                    total = len(raw_ps)
-                    parts = []
-                    if done > 0:
-                        parts.append(f"✅{done}")
-                    if na > 0:
-                        parts.append(f"⚠{na}")
-                    if total > 0:
-                        attr_parts.append(f"Prod: {' '.join(parts)}/{total}")
-
-            item_info_controls = [
-                ft.Text(item_no, weight="bold", size=13),
-            ]
-            if attr_parts:
-                item_info_controls.append(
-                    ft.Text(" • ".join(attr_parts), size=11, color=ft.Colors.GREY_700)
-                )
-
-            row_controls = [ft.Column(item_info_controls, expand=True, spacing=2)]
-            if is_admin:
-                row_controls.append(
-                    ft.Text(f"₹{line_total:,.2f}", size=12, color=ft.Colors.GREY_800)
-                )
-            cat_rows.append(ft.Row(row_controls, spacing=8))
-
-        items_blocks.append(
-            ft.Card(
-                elevation=2,
-                content=ft.Container(
-                    padding=10, border_radius=8,
-                    border=ft.Border(left=ft.BorderSide(4, cat_color)),
-                    content=ft.Column(cat_rows, spacing=6),
-                ),
-            )
+    def _status_pill(status):
+        st = status or "pending"
+        styles = {
+            "prepared": (ft.Colors.GREEN_600, "✅ Ready"),
+            "pending": (ft.Colors.GREY_400, "⬜ Pending"),
+            "not_available": (ft.Colors.RED_500, "⚠ Not Avail"),
+        }
+        color, label = styles.get(st, styles["pending"])
+        return ft.Container(
+            padding=ft.Padding(6, 2, 6, 2),
+            border_radius=4,
+            bgcolor=ft.Colors.with_opacity(0.12, color),
+            content=ft.Text(label, size=10, weight="bold", color=color),
         )
+
+    if is_admin:
+        # --- Admin visual rendering with production status ---
+        prod_prepared = 0
+        prod_not_available = 0
+        prod_total = 0
+        items_blocks = []
+        grand_total_qty = 0
+
+        for cat in sorted(category_groups.keys()):
+            cat_items = category_groups[cat]
+            cat_color = page.CATEGORY_COLORS.get(cat, ft.Colors.GREY_400)
+
+            cat_header = ft.Container(
+                padding=ft.Padding(8, 6, 8, 6),
+                bgcolor=cat_color,
+                border_radius=6,
+                content=ft.Row([
+                    ft.Text(cat.replace("_", " "), size=12, weight="bold", color=ft.Colors.WHITE),
+                    ft.Text(f"{len(cat_items)} items", size=11, color=ft.Colors.with_opacity(0.8, ft.Colors.WHITE)),
+                ], spacing=8),
+            )
+
+            item_cards = []
+            for it in cat_items:
+                item_no = it.get("item_number", "—")
+                unit_price = it.get("unit_price", 0)
+                color = it.get("color")
+
+                img_url = image_lookup.get(item_no, "")
+                if _is_valid_image(img_url):
+                    thumb = ft.Image(src=img_url, width=64, height=64, fit=ft.ImageFit.COVER, border_radius=8)
+                else:
+                    thumb = ft.Container(
+                        width=64, height=64, bgcolor=ft.Colors.GREY_100, border_radius=8,
+                        alignment=ft.alignment.center,
+                        content=ft.Icon(ft.Icons.IMAGE, size=28, color=ft.Colors.GREY_400),
+                    )
+
+                info_col = ft.Column(spacing=2, controls=[
+                    ft.Text(item_no, size=14, weight="bold"),
+                    ft.Container(
+                        padding=ft.Padding(4, 1, 4, 1),
+                        bgcolor=cat_color,
+                        border_radius=3,
+                        content=ft.Text(cat.replace("_", " "), size=9, color=ft.Colors.WHITE, weight="bold"),
+                    ),
+                ])
+                if color:
+                    info_col.controls.append(ft.Text(f"Color: {color}", size=11, color=ft.Colors.GREY_700))
+
+                ps = _parse_ps(it.get("production_status"))
+
+                sizes_data = [
+                    ("2.2", it.get("qty_2_2", 0)), ("2.4", it.get("qty_2_4", 0)),
+                    ("2.6", it.get("qty_2_6", 0)), ("2.8", it.get("qty_2_8", 0)),
+                    ("2.10", it.get("qty_2_10", 0)),
+                ]
+                total_sets = sum(q for _, q in sizes_data)
+
+                size_rows = []
+                if total_sets > 0:
+                    grand_total_qty += total_sets
+                    for s, q in sizes_data:
+                        if q > 0:
+                            st = ps.get(s, "pending")
+                            prod_total += 1
+                            if st == "prepared":
+                                prod_prepared += 1
+                            elif st == "not_available":
+                                prod_not_available += 1
+                            size_rows.append(
+                                ft.Row(spacing=8, controls=[
+                                    ft.Text(s, size=13, weight="bold", width=36),
+                                    ft.Text(str(q), size=13, width=36),
+                                    _status_pill(st),
+                                ])
+                            )
+                    line_total = total_sets * unit_price
+                else:
+                    qty = it.get("quantity", 0) or 0
+                    try:
+                        qty_val = float(qty)
+                    except ValueError:
+                        qty_val = 0
+                    grand_total_qty += int(qty_val) if qty_val.is_integer() else qty_val
+                    st = ps.get("single", "pending")
+                    prod_total += 1
+                    if st == "prepared":
+                        prod_prepared += 1
+                    elif st == "not_available":
+                        prod_not_available += 1
+                    size_rows.append(
+                        ft.Row(spacing=8, controls=[
+                            ft.Text("Qty", size=13, weight="bold", width=36),
+                            ft.Text(str(qty), size=13, width=36),
+                            _status_pill(st),
+                        ])
+                    )
+                    line_total = qty_val * unit_price
+
+                price_text = ft.Text(f"₹{line_total:,.2f}", size=12, color=ft.Colors.GREY_800, weight="bold")
+
+                item_cards.append(
+                    ft.Container(
+                        padding=12, border_radius=10,
+                        bgcolor=ft.Colors.WHITE,
+                        border=ft.border.all(1, ft.Colors.GREY_200),
+                        content=ft.Column(spacing=8, controls=[
+                            ft.Row(spacing=10, controls=[thumb, info_col]),
+                            ft.Column(spacing=4, controls=size_rows),
+                            ft.Row([ft.Container(expand=True), price_text]),
+                        ]),
+                    )
+                )
+
+            items_blocks.append(
+                ft.Column(expand=True, spacing=8, controls=[cat_header] + item_cards)
+            )
+    else:
+        # --- Labour text rendering (unchanged) ---
+        items_blocks = []
+        grand_total_qty = 0
+
+        for cat in sorted(category_groups.keys()):
+            cat_items = category_groups[cat]
+            cat_color = page.CATEGORY_COLORS.get(cat, ft.Colors.GREY_400)
+            cat_rows = [
+                ft.Container(
+                    padding=ft.Padding(left=6, right=6, top=3, bottom=3),
+                    bgcolor=cat_color,
+                    border_radius=4,
+                    content=ft.Text(f"{cat.replace('_', ' ')} ({len(cat_items)} items)",
+                                    size=12, weight="bold", color=ft.Colors.WHITE),
+                )
+            ]
+
+            for it in cat_items:
+                item_no = it.get("item_number", "—")
+                unit_price = it.get("unit_price", 0)
+                attr_parts = []
+
+                sizes_data = [
+                    ("2.2", it.get("qty_2_2", 0)), ("2.4", it.get("qty_2_4", 0)),
+                    ("2.6", it.get("qty_2_6", 0)), ("2.8", it.get("qty_2_8", 0)),
+                    ("2.10", it.get("qty_2_10", 0)),
+                ]
+                total_sets = sum(q for _, q in sizes_data)
+
+                if total_sets > 0:
+                    grand_total_qty += total_sets
+                    size_str = " | ".join(f"{s}:{q}" for s, q in sizes_data if q > 0)
+                    attr_parts.append(f"Sets: {total_sets}")
+                    if size_str:
+                        attr_parts.append(size_str)
+                    line_total = total_sets * unit_price
+                else:
+                    qty = it.get("quantity") or 0
+                    try:
+                        qty_val = float(qty)
+                    except ValueError:
+                        qty_val = 0
+                    grand_total_qty += int(qty_val) if qty_val.is_integer() else qty_val
+                    unit = it.get("unit") or "pieces"
+                    if cat == "Raw_Material":
+                        attr_parts.append(f"Qty: {qty} {unit}")
+                    else:
+                        attr_parts.append(f"Qty: {qty}")
+                    line_total = qty_val * unit_price
+
+                if it.get("color"):
+                    attr_parts.append(f"Color: {it['color']}")
+                if it.get("grind_type"):
+                    attr_parts.append(f"Grind: {it['grind_type']}")
+                if it.get("box_type"):
+                    attr_parts.append(f"Box: {it['box_type']}")
+                if it.get("notes"):
+                    attr_parts.append(f"Notes: {it['notes']}")
+
+                item_info_controls = [
+                    ft.Text(item_no, weight="bold", size=13),
+                ]
+                if attr_parts:
+                    item_info_controls.append(
+                        ft.Text(" • ".join(attr_parts), size=11, color=ft.Colors.GREY_700)
+                    )
+
+                row_controls = [ft.Column(item_info_controls, expand=True, spacing=2)]
+                cat_rows.append(ft.Row(row_controls, spacing=8))
+
+            items_blocks.append(
+                ft.Card(
+                    elevation=2,
+                    content=ft.Container(
+                        padding=10, border_radius=8,
+                        border=ft.Border(left=ft.BorderSide(4, cat_color)),
+                        content=ft.Column(cat_rows, spacing=6),
+                    ),
+                )
+            )
 
     # Total and actions
     total_controls = [
@@ -877,6 +1001,17 @@ def view_order_detail(page: ft.Page):
             ft.Text(f"Total: ₹{order['total_amount']:,.2f}", size=16,
                     weight="bold", color=ft.Colors.INDIGO_700)
         )
+        # Production summary
+        if prod_total > 0:
+            parts = []
+            if prod_prepared > 0:
+                parts.append(f"✅ {prod_prepared}/{prod_total}")
+            if prod_not_available > 0:
+                parts.append(f"⚠ {prod_not_available}")
+            if parts:
+                total_controls.append(
+                    ft.Text(f"Production: {'  '.join(parts)}", size=12, color=ft.Colors.GREY_700)
+                )
 
     def open_slip(_):
         state["slip_order_id"] = order_id

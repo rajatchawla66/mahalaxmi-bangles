@@ -47,6 +47,47 @@ def view_home(page: ft.Page):
 
     def _build_order_cards(orders_list):
         """Build order card widgets from a normalized orders list."""
+
+        def _production_summary(order_items):
+            prepared = 0
+            not_available = 0
+            total = 0
+            has_data = False
+            for item in order_items:
+                raw_ps = item.get("production_status")
+                if not raw_ps or raw_ps == {}:
+                    continue
+                if isinstance(raw_ps, str):
+                    try:
+                        import json as _json
+                        ps = _json.loads(raw_ps)
+                    except Exception:
+                        ps = {}
+                else:
+                    ps = raw_ps
+                if ps:
+                    has_data = True
+                has_sizes = any(item.get(f"qty_2_{s}", 0) > 0 for s in ["2", "4", "6", "8", "10"])
+                if has_sizes:
+                    for sk in ["2.2", "2.4", "2.6", "2.8", "2.10"]:
+                        qty_col = f"qty_{sk.replace('.', '_')}"
+                        if item.get(qty_col, 0) > 0:
+                            total += 1
+                            st = ps.get(sk, "pending")
+                            if st == "prepared":
+                                prepared += 1
+                            elif st == "not_available":
+                                not_available += 1
+                else:
+                    qty = item.get("quantity", 0) or 0
+                    if qty > 0:
+                        total += 1
+                        st = ps.get("single", "pending")
+                        if st == "prepared":
+                            prepared += 1
+                        elif st == "not_available":
+                            not_available += 1
+            return prepared, not_available, total, has_data
         cards = []
         if not orders_list:
             cards.append(
@@ -180,6 +221,18 @@ def view_home(page: ft.Page):
                 subtitle_controls.append(ft.Row(cat_chips, spacing=4, wrap=True))
             if is_admin:
                 subtitle_controls.append(ft.Text(f"₹{order.get('total_amount', 0):,.2f}", size=13, weight="bold", color=ft.Colors.INDIGO_700))
+            # Production summary (admin only)
+            if is_admin:
+                prod_prepared, prod_na, prod_total, prod_has_data = _production_summary(line_items)
+                if prod_has_data:
+                    prod_parts = []
+                    if prod_prepared > 0:
+                        prod_parts.append(f"✅ {prod_prepared}/{prod_total}")
+                    if prod_na > 0:
+                        prod_parts.append(f"⚠ {prod_na}")
+                    subtitle_controls.append(
+                        ft.Text(f"Production: {'  '.join(prod_parts)}", size=11, color=ft.Colors.GREY_700)
+                    )
 
             # Trailing: popup menu for pending/confirmed admin orders; chevron for labour
             if is_admin and status == "pending":

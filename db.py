@@ -461,7 +461,6 @@ def create_order(header: dict, line_items: list) -> int:
         "color": header.get("color"),
         "grind_type": header.get("grind_type"),
         "box_type": header.get("box_type"),
-        "packing_structure": header.get("packing_structure"),
         "additional_info": header.get("additional_info"),
         "total_amount": header.get("total_amount", 0),
         "source": header.get("source", "admin"),
@@ -509,7 +508,6 @@ def update_order(order_id: int, header: dict, line_items: list) -> bool:
         "color": header.get("color"),
         "grind_type": header.get("grind_type"),
         "box_type": header.get("box_type"),
-        "packing_structure": header.get("packing_structure"),
         "additional_info": header.get("additional_info"),
         "total_amount": header.get("total_amount", 0),
     }

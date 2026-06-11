@@ -34,10 +34,6 @@ import session_helper
 # ---------- Constants ----------
 COLOR_OPTIONS = ["Light Mehroon", "Dark Mehroon", "Red", "Rani", "Custom"]
 BOX_OPTIONS = ["Jodi Box", "Mahal Box", "Flap Box", "Velvet Box"]
-PACKING_OPTIONS = [
-    "Station is Far Away – Proper packing",
-    "Nearby station – Packing cost can be reduced",
-]
 GRIND_OPTIONS = ["Gol / Internal-Grind", "Bina Gol / Non-Grind"]
 
 # ---------- Category Schema Registry ----------

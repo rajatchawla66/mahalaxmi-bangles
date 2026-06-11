@@ -102,7 +102,6 @@ def _draw_details_card(pdf: FPDF, order: dict):
         ("Color", order.get("color")),
         ("Grind / Finish", order.get("grind_type")),
         ("Box Type", order.get("box_type")),
-        ("Packing", order.get("packing_structure")),
     ]
     extra = order.get("additional_info", "")
 

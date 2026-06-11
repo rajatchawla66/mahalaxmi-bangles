@@ -6,7 +6,6 @@ from pathlib import Path
 import db
 
 __all__ = [
-    'PACKING_OPTIONS',
     '_load_categories_from_db',
     '_safe_int',
     'validate_cart_item',
@@ -14,11 +13,6 @@ __all__ = [
     'calculate_line_total',
     '_is_valid_image',
     '_safe_launch_url'
-]
-
-PACKING_OPTIONS = [
-    "2 Pair", "3 Pair", "4 Pair", "1 Box", "1 Dozen", "Half Dozen",
-    "1 Set", "1 Piece", "500g", "1Kg", "1 Pkt", "Custom"
 ]
 
 def _load_categories_from_db():

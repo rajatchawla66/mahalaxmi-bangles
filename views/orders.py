@@ -211,12 +211,6 @@ def view_order_form(page: ft.Page):
         value=state.get("edit_order_date", datetime.date.today().isoformat()),
         hint_text="YYYY-MM-DD",
     )
-    packing_dd = ft.Dropdown(
-        label="Packing Structure",
-        options=[ft.dropdown.Option(p) for p in PACKING_OPTIONS],
-        value=state.get("edit_order_packing", PACKING_OPTIONS[0]),
-        expand=True,
-    )
     notes_tf = ft.TextField(
         label="Additional Info",
         value=state.get("edit_order_notes", ""),
@@ -279,17 +273,6 @@ def view_order_form(page: ft.Page):
         summary_total_amount.value = f"₹{total_amount:,.2f}"
         return total_amount
 
-    def _stat_card_wrap(label, value_ctrl):
-        return ft.Container(
-            width=100, padding=8, border_radius=10,
-            bgcolor=ft.Colors.INDIGO_50,
-            content=ft.Column(
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=2,
-                controls=[value_ctrl, ft.Text(label, size=11, color=ft.Colors.GREY_700)],
-            ),
-        )
-
     def render_cart():
         cart_column.controls = [build_cart_row(ci) for ci in state["cart"]]
         refresh_summary()
@@ -312,17 +295,6 @@ def view_order_form(page: ft.Page):
     def build_cart_row(ci):
         uid = ci["uid"]
 
-        image_ctrl = ft.Image(
-            src="", width=100, height=100,
-            fit=ft.ImageFit.COVER, border_radius=8, visible=False,
-        )
-        placeholder_ctrl = ft.Container(
-            width=100, height=100,
-            bgcolor=ft.Colors.GREY_200, border_radius=8,
-            alignment=ft.alignment.center,
-            content=ft.Text("Pick item", size=11, color=ft.Colors.GREY_600),
-            visible=True,
-        )
         sp_text = ft.Text("", size=11, color=ft.Colors.GREY_700)
         line_total_text = ft.Text("", size=12, color=ft.Colors.GREY_700)
         category_fields_column = ft.Column(spacing=8)
@@ -358,20 +330,9 @@ def view_order_form(page: ft.Page):
 
         def update_preview(item_no):
             info = rate_lookup.get(item_no)
-            if info and _is_valid_image(info.get("image_url", "")):
-                image_ctrl.src = info["image_url"]
-                image_ctrl.visible = True
-                placeholder_ctrl.visible = False
-                sp_text.value = f"SP: ₹{info['selling_price']:.2f}"
-            elif info:
-                image_ctrl.visible = False
-                placeholder_ctrl.content = ft.Text("No image", color=ft.Colors.GREY_600)
-                placeholder_ctrl.visible = True
-                sp_text.value = f"SP: ₹{info['selling_price']:.2f}"
+            if info:
+                sp_text.value = f"🟢 ₹{info['selling_price']:.2f}"
             else:
-                image_ctrl.visible = False
-                placeholder_ctrl.content = ft.Text("Pick item", size=11, color=ft.Colors.GREY_600)
-                placeholder_ctrl.visible = True
                 sp_text.value = ""
 
         def refresh_line_total():
@@ -456,10 +417,6 @@ def view_order_form(page: ft.Page):
             state["cart"] = [x for x in state["cart"] if x["uid"] != uid]
             render_cart()
 
-        image_area = ft.Stack(
-            [placeholder_ctrl, image_ctrl], width=100, height=100,
-        )
-
         update_preview(ci["item_number"])
         rebuild_category_fields()
         refresh_line_total()
@@ -470,10 +427,10 @@ def view_order_form(page: ft.Page):
                 [
                     ft.Text(f"Item #{state['cart'].index(ci) + 1}",
                             weight="bold"),
-                    ft.IconButton(
-                        ft.Icons.DELETE_OUTLINE,
-                        icon_color=ft.Colors.RED_500,
-                        on_click=remove_row, tooltip="Remove",
+                    ft.TextButton(
+                        "🗑️ Remove",
+                        on_click=remove_row,
+                        style=ft.ButtonStyle(color=ft.Colors.RED_500),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -484,10 +441,7 @@ def view_order_form(page: ft.Page):
             row_controls.append(row_cat_dd)
 
         row_controls.extend([
-            ft.Row(
-                [image_area, ft.Column([item_dd, sp_text], expand=True, spacing=4)],
-                spacing=10,
-            ),
+            ft.Column([item_dd, sp_text], spacing=4),
             category_fields_column,
             line_total_text,
         ])
@@ -496,7 +450,7 @@ def view_order_form(page: ft.Page):
             padding=10, border_radius=10,
             bgcolor=ft.Colors.WHITE,
             border=ft.border.all(1, ft.Colors.GREY_300),
-            content=ft.Column(spacing=8, controls=row_controls),
+            content=ft.Column(spacing=6, controls=row_controls),
         )
 
     def add_cart_row(_):
@@ -565,7 +519,6 @@ def view_order_form(page: ft.Page):
             "color": None,
             "grind_type": None,
             "box_type": None,
-            "packing_structure": packing_dd.value,
             "additional_info": notes_tf.value.strip(),
             "total_amount": total_amount,
         }
@@ -574,7 +527,7 @@ def view_order_form(page: ft.Page):
             db.update_order(state["edit_order_id"], header_data, line_items)
             snack(f"✅ Order #{state['edit_order_id']} updated (₹{total_amount:,.2f})")
             
-            for k in ["edit_order_id", "edit_order_customer", "edit_order_date", "edit_order_packing", "edit_order_notes"]:
+            for k in ["edit_order_id", "edit_order_customer", "edit_order_date", "edit_order_notes"]:
                 if k in state:
                     del state[k]
         else:
@@ -592,17 +545,27 @@ def view_order_form(page: ft.Page):
 
     summary_column = ft.Column(spacing=6, controls=[
         ft.Container(
-            content=summary_rows_column,
-            bgcolor=ft.Colors.GREY_100, padding=8, border_radius=8,
-        ),
-        ft.Row(
-            [
-                _stat_card_wrap("Items", summary_total_items),
-                _stat_card_wrap("Total Sets", summary_total_sets),
-                _stat_card_wrap("Amount", summary_total_amount),
-            ],
-            alignment=ft.MainAxisAlignment.SPACE_AROUND,
-            wrap=True,
+            bgcolor=ft.Colors.GREY_50, padding=ft.Padding(12, 10, 12, 10), border_radius=8,
+            border=ft.border.all(1, ft.Colors.GREY_200),
+            content=ft.Row(
+                alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                controls=[
+                    ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2, controls=[
+                        summary_total_items,
+                        ft.Text("Items", size=11, color=ft.Colors.GREY_600),
+                    ]),
+                    ft.Container(width=1, height=30, bgcolor=ft.Colors.GREY_300),
+                    ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2, controls=[
+                        summary_total_sets,
+                        ft.Text("Sets", size=11, color=ft.Colors.GREY_600),
+                    ]),
+                    ft.Container(width=1, height=30, bgcolor=ft.Colors.GREY_300),
+                    ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2, controls=[
+                        summary_total_amount,
+                        ft.Text("Amount", size=11, color=ft.Colors.GREY_600),
+                    ]),
+                ],
+            ),
         ),
     ])
 
@@ -614,20 +577,24 @@ def view_order_form(page: ft.Page):
         shadow=_card_shadow,
         content=ft.Column(spacing=10, controls=[
             ft.Text("👤 Order Details", size=16, weight="bold"),
-            ft.Row(spacing=10, controls=[
-                customer_tf,
-                date_tf,
-            ]),
-            ft.Row(spacing=10, controls=[
-                packing_dd,
-                notes_tf,
-            ]),
+            customer_tf,
+            date_tf,
+            notes_tf,
         ]),
     )
 
+    mode_label = "Mixed" if is_mixed else (selected_cat or "Single")
     items_header = ft.Row(
         [
-            ft.Text("🛒 Items", size=16, weight="bold"),
+            ft.Row(spacing=6, controls=[
+                ft.Text("🛒 Items", size=16, weight="bold"),
+                ft.Container(
+                    padding=ft.Padding(6, 2, 6, 2),
+                    bgcolor=ft.Colors.INDIGO_50 if is_mixed else ft.Colors.AMBER_50,
+                    border_radius=4,
+                    content=ft.Text(mode_label, size=10, color=ft.Colors.INDIGO_700 if is_mixed else ft.Colors.AMBER_800, weight="bold"),
+                ),
+            ]),
             ft.FilledTonalButton("➕ Add Item", on_click=add_cart_row, disabled=not item_numbers),
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -655,17 +622,27 @@ def view_order_form(page: ft.Page):
         on_click=save_order, height=48, expand=True,
     )
 
-    body = ft.ListView(
-        expand=True, spacing=12, padding=12,
+    list_view = ft.ListView(
+        expand=True, spacing=12, padding=ft.Padding(left=12, right=12, top=12, bottom=80),
         controls=[
             ft.Column([customer_card], expand=True),
             ft.Column([items_card], expand=True),
             ft.Column([summary_card], expand=True),
-            ft.Row([save_button]),
-            ft.Container(height=24),
         ],
     )
-    return body
+
+    save_bar = ft.Container(
+        padding=ft.Padding(12, 8, 12, 12),
+        bgcolor=ft.Colors.WHITE,
+        border=ft.border.only(top=ft.border.BorderSide(1, ft.Colors.GREY_200)),
+        content=save_button,
+    )
+
+    return ft.Column(
+        expand=True,
+        spacing=0,
+        controls=[list_view, save_bar],
+    )
 
 # ============================================================
 # ORDER DETAIL VIEW
@@ -700,8 +677,6 @@ def view_order_detail(page: ft.Page):
     ]
     if is_admin:
         header_controls.append(ft.Text(f"Customer: {order['customer_name']}", size=14))
-    if order.get("packing_structure"):
-        header_controls.append(ft.Text(f"Packing: {order['packing_structure']}", size=12, color=ft.Colors.GREY_700))
     if order.get("additional_info"):
         header_controls.append(ft.Text(f"Notes: {order['additional_info']}", size=12, italic=True, color=ft.Colors.GREY_700))
 
@@ -825,7 +800,6 @@ def view_order_detail(page: ft.Page):
         state["edit_order_id"] = order_id
         state["edit_order_customer"] = order.get("customer_name", "")
         state["edit_order_date"] = order.get("order_date", "")
-        state["edit_order_packing"] = order.get("packing_structure", "")
         state["edit_order_notes"] = order.get("additional_info", "")
         
         cart = []
@@ -916,7 +890,6 @@ def view_karigar_slip(page: ft.Page):
             _slip_row("रंग (Color)", order["color"]),
             _slip_row("फिनिशिंग (Gol ya Bina Gol)", order["grind_type"]),
             _slip_row("बॉक्स का प्रकार (Box Type)", order["box_type"]),
-            _slip_row("पैकिंग का तरीका (Packing)", order["packing_structure"]),
         ]),
     )
 
@@ -1015,7 +988,6 @@ def view_karigar_slip(page: ft.Page):
             f"रंग: {order_data['color'] or '—'}",
             f"फिनिशिंग: {order_data['grind_type'] or '—'}",
             f"बॉक्स: {order_data['box_type'] or '—'}",
-            f"पैकिंग: {order_data['packing_structure'] or '—'}",
         ]
         if order_data["additional_info"]:
             lines.append(f"विशेष: {order_data['additional_info']}")

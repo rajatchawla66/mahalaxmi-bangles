@@ -21,7 +21,7 @@
 - **HTTP Client:** httpx (lightweight, works on Android)
 - **Database:** Supabase (PostgreSQL) via REST API
 - **Image Storage:** Supabase Storage (public bucket: `product-images`)
-- **Price Card Generation:** Cloudinary (text overlay transformations)
+- **Image Processing:** Supabase Storage (public bucket: `product-images`)
 - **Offline Cache:** Local JSON files + downloaded images
 - **PDF Generation:** fpdf2 + Pillow
 - **APK Build:** GitHub Actions CI (Windows local builds broken)
@@ -65,7 +65,7 @@
 |-------|-------------|
 | **`customers`** | `id`, `pin` (unique, 8-digit), `shop_name`, `owner_name`, `mobile`, `city`, `notes`, `is_active`, `created_at`, `last_active_at` |
 | **`categories`** | `id`, `name`, `icon`, `color`, `description`, `sub_categories`, `order_type`, `is_active`, `cover_image_url` |
-| **`rate_list`** | `item_number`, `image_url`, `cost_price`, `selling_price`, `category`, `sub_category`, `has_sizes`, `has_color`, `card_path`, `is_available`, `margin_percent`, `status` |
+| **`rate_list`** | `item_number`, `image_url`, `cost_price`, `selling_price`, `category`, `sub_category`, `has_sizes`, `has_color`, `is_available`, `margin_percent`, `status` |
 | **`orders`** | `order_id`, `customer_name`, `order_date`, `color`, `grind_type`, `box_type`, `packing_structure`, `additional_info`, `total_amount`, `source`, `customer_mobile`, `status` |
 | **`order_items`** | `order_id`, `item_number`, `category`, `qty_2_2/2.4/2.6/2.8/2.10`, `quantity`, `unit`, `color`, `grind_type`, `box_type`, `notes`, `unit_price` |
 | **`materials`** | `id`, `name`, `rate`, `unit`, `category` |
@@ -93,7 +93,7 @@
 | **No `page.window_destroy()`** | Use `page.window.destroy()` instead (note: property, not method) |
 | **Dialog API** | Use `page.overlay.append(dlg)` NOT `page.dialog = dlg` |
 | **SnackBar API** | Use `page.overlay.append(sb)` |
-| **Dropdown** | Use `on_select` NOT `on_change` |
+| **Dropdown** | Use `on_change` NOT `on_select` (confirmed June 11, 2026) |
 | **No `ResponsiveRow`** | Causes RangeError; use `ft.Row`/`ft.Column` with fixed widths |
 | **No `expand=True` inside `ft.Row`** | Triggers grid crash; use fixed widths |
 | **ListView in tabs** | Replace with `ft.Column(scroll=ft.ScrollMode.AUTO)` |
@@ -481,6 +481,54 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-024: Admin Order Form — Dropdown on_select never fires, missing return controls
+| Field | Detail |
+|-------|--------|
+| **Date** | June 11, 2026 |
+| **Symptom** | Admin → Create Order: Single Category — items show in dropdown but selecting does nothing (no size/qty controls). Mixed Order — category dropdown works but item dropdown shows no items. |
+| **Root Cause** | Two bugs: (1) `item_dd.on_select = on_item_change` and `row_cat_dd.on_select = on_row_cat_change` — `Dropdown` in Flet 0.28.3 uses `on_change`, not `on_select`. The `on_select` attribute is silently ignored. (2) `build_category_fields()` in `main.py` builds size/qty/color controls into a `controls` list but never returns it — Python returns `None`, so `category_fields_column.controls = None` discards all controls. |
+| **Fix** | (a) Changed `item_dd.on_select` → `item_dd.on_change`, `row_cat_dd.on_select` → `row_cat_dd.on_change`. (b) Added `return controls` at end of `build_category_fields()`. (c) Fixed same `on_select` → `on_change` for `color_dd` inside `build_category_fields`. |
+| **Files** | `views/orders.py:427,453`, `main.py:843,867` |
+| **Lesson** | Flet 0.28.3 `Dropdown.on_select` is not a valid event — the attribute is silently accepted but never fires. Always use `on_change`. Every Python function that builds a list must `return` it. |
+
+---
+
+### BUG-023: Admin Order Form — Layout starvation after ft.Card → ft.Container replacement
+| Field | Detail |
+|-------|--------|
+| **Date** | June 11, 2026 |
+| **Symptom** | Admin → Create Order: text wraps letter-by-letter, controls width-collapsed, dropdown rendering broken. Triggered by ft.Card→ft.Container fix for touch reliability. |
+| **Root Cause** | `ft.Card` intrinsically expands to fill `ft.ListView` width in Flet 0.28.3. `ft.Container` without `expand` or `width` sizes to its content. After replacement, the three cards (customer_card, items_card, summary_card) were ~220px wide (content-width from TextField labels) instead of filling the full ListView width. |
+| **Fix** | Wrapped each card in `ft.Column([card], expand=True)` — the Column wrapper forces full-width expansion from ListView while the card Container still auto-sizes vertically. |
+| **Files** | `views/orders.py:658-667` |
+| **Lesson** | `ft.Container` direct child of `ft.ListView` does NOT stretch to full width like `ft.Card` does. Must wrap in `ft.Column(expand=True)` or use explicit width. |
+
+---
+
+### BUG-022: Card_path overwritten with "" — legacy Cloudinary system fully removed
+| Field | Detail |
+|-------|--------|
+| **Date** | June 11, 2026 |
+| **Symptom** | Every item save wipes `card_path` column to `""`. Whole Cloudinary price-card system is dead but code still references it. |
+| **Root Cause** | `update_item_image_and_card()` in `db.py` always writes `""` for `card_path` because Cloudinary generation was removed. `get_all_items_with_cards()` has misleading name. `card_path` column exists in Supabase but no code reads it. |
+| **Fix** | Renamed `update_item_image_and_card()` → `update_item_image()`, removed `card_path` param and PATCH field. Renamed `get_all_items_with_cards()` → `get_all_items()`. Updated both callers in `views/pricing.py`. Removed `generated_cards/` from `.gitignore` and `pyproject.toml`. Added `sql/migration_remove_card_path.sql` — run manually in Supabase: `ALTER TABLE rate_list DROP COLUMN IF EXISTS card_path;`. Zero active references remain in `.py` files. |
+| **Files** | `db.py:408,442`, `views/pricing.py:218,294`, `.gitignore`, `pyproject.toml`, `sql/migration_remove_card_path.sql` (new) |
+| **Lesson** | Dead features must be fully removed from code AND database, not just left with stubs. |
+
+---
+
+### BUG-021: Admin Order Form — Category comparison fails due to whitespace mismatch
+| Field | Detail |
+|-------|--------|
+| **Date** | June 11, 2026 |
+| **Symptom** | Mixed Order: after selecting a category, item dropdown shows no items. Items exist in the category but the equality check fails. |
+| **Root Cause** | `_get_items_for_row()` in `views/orders.py:347` compares `it.get("category") == cat`. Category names stored in `rate_list.items` vs `categories` table may have trailing/leading whitespace differences — no `.strip()` normalization. |
+| **Fix** | Added `.strip().lower()` to both sides: `it.get("category", "").strip().lower() == cat.strip().lower()`. |
+| **Files** | `views/orders.py:347` |
+| **Lesson** | Category names are free-text input, always normalize comparisons with `.strip().lower()`. |
+
+---
+
 ### BUG-017: Costing Detail RangeError 12 — invisible ListView child causes index mismatch
 | Field | Detail |
 |-------|--------|
@@ -499,7 +547,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Customer Dashboard & Catalogue
 - Admin Settings & Category Management
 - Sync & Offline Capabilities (local JSON cache)
-- Order Creation & Full Flow
+- Order Creation & Full Flow (Single Category + Mixed Order, size/quantity/color controls)
 - APK Build via GitHub Actions CI (Flutter 3.24.0, Python 3.11, Flet 0.28.3)
 - Navigation & Hardware Back Button (interceptor preserved, no view popping)
 - Session Restore for All Roles (admin, labour, customer)
@@ -523,6 +571,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Order Status System (Phase 1) — Admin side: `status` column added to orders table; status badge (pending/confirmed/cancelled) on admin Home cards; Confirm/Cancel actions for pending orders; read-only for confirmed/cancelled. `set_order_status()` in db.py.
 - Customer PIN Login System (Phases 1-3) — Admin Manage Customers page (add/edit/block, copy PIN, search). 8-digit PIN auto-generation with collision retry. Customer PIN login replaces free-text name entry. `customer_id`/`customer_shop_name` in state + session. Session persists PIN login across restarts. `sql/create_customers_table.sql` for Supabase schema.
 - Premium Brand Landing Page — Redesigned login screen as premium jewellery-brand landing page. Cream background, gold accents, maroon CTA, centered layout with logo/firm name/subtitle, gold ornamental dividers (`ft.Row` with gold lines + ✦), GST card, PIN login directly on landing page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage trust container, small Admin/Labour text links. Old `view_login()` replaced entirely. `customer_login` route preserved as fallback.
+- Order Form Phase A — No image preview in cart rows, compact customer card (full-width fields), single compact summary row (Items | Sets | Amount), mode badge, dead code removed.
+- Order Form Phase B — Packing structure fully removed from UI/save/slips/PDF/DB layer. Sticky save button (always visible at bottom). Visible red Remove button per item. Tighter item row spacing.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -642,6 +692,14 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 11, 2026 | Order Form Phase B — Full packing system removal (packing_dd, packing_structure from save/reload/detail/slips/PDF/DB), sticky save button (ListView + save_bar Column wrapper), visible Remove button (TextButton replacing IconButton), item row spacing tightened (10→6), dead PACKING_OPTIONS removed from utils.py and main.py. Zero Python references to packing_structure remain. DB column still present in Supabase (harmless — never read). | `views/orders.py`, `db.py`, `slip_pdf_generator.py`, `utils.py`, `main.py`, `PROJECT_MEMORY.md` | Complete — committing |
+| June 11, 2026 | Order Form Phase A — Removed 100×100 image preview from cart rows, restructured customer card layout (full-width name, date+packing row, full-width notes), compact summary (single bordered row replacing 3 stat cards), mode badge (Mixed/Single), removed dead `_stat_card_wrap()`, removed stale PACKING_OPTIONS from main.py (kept in utils.py). | `views/orders.py`, `main.py` | Complete — pushed |
+| June 11, 2026 | BUG-024 — Order form dropdowns not firing + missing return controls. Changed on_select→on_change for all 3 dropdowns (item_dd, row_cat_dd, color_dd). Added missing `return controls` in build_category_fields(). | `views/orders.py`, `main.py` | Complete — pushed `c4f0dd2` |
+| June 11, 2026 | BUG-023 — Order form layout starvation after ft.Card→ft.Container. Wrapped 3 cards in ft.Column(expand=True). | `views/orders.py` | Complete — pushed `6c5a14d` |
+| June 11, 2026 | BUG-022 — Cloudinary/price-card/card_path full cleanup. Renamed 2 db.py functions, removed card_path param and PATCH field, updated callers, removed generated_cards from config, added SQL migration. | `db.py`, `views/pricing.py`, `.gitignore`, `pyproject.toml`, `sql/migration_remove_card_path.sql` (new) | Complete — pushed `b7efe78` |
+| June 11, 2026 | BUG-021 — Category comparison whitespace mismatch. Added .strip().lower() to both sides in _get_items_for_row(). | `views/orders.py` | Complete — pushed `6c5a14d` |
+| June 11, 2026 | Mobile touch reliability fix — replaced risky ft.Card with ft.Container across 4 files (orders/customer/settings/customers). 11 cards replaced, SAFE/LOW cards untouched. | `views/orders.py`, `views/customer.py`, `views/settings.py`, `views/customers.py`, `Audit Report 11June.md` (new) | Complete — pushed `4b143c5` |
+| June 11, 2026 | Costing Detail mobile redesign — create_material_row() rewritten to vertical card with stored references, double-click delete guard. | `views/pricing.py` | Complete — pushed `3ff6534` |
 | June 10, 2026 | Settings screen restructuring — clean 6-item menu replacing inline forms. New settings_margin/settings_materials routes. Removed duplicate get_default_margin() in db.py. | `db.py`, `views/settings.py`, `main.py`, `PROJECT_MEMORY.md` | Complete — pushed |
 | June 10, 2026 | Category system stability — 6 fixes: (1) add_category sets is_active=True, (2) decoupled catalogue/category fetch try/except, (3) independent category guard, (4) decoupled manual refresh try/except, (5) offline cache is_active filtering, (6) .strip() normalization on category name comparisons | `db.py`, `views/customer.py`, `main.py`, `cache.py`, `PROJECT_MEMORY.md` | Complete — pushing CI |
 | June 10, 2026 | BUG-020 — Place Order silently dead. Added `import datetime` to `db.py` (was missing in `create_order`). Removed redundant local imports. | `db.py`, `PROJECT_MEMORY.md` | Complete — pushing CI |
@@ -698,7 +756,7 @@ Full regression audit across 12 major flows. 30+ bugs found. Organized by severi
 | **R2** | `session_helper.py:17` / `main.py:486` | Session saves `customer_mobile` but restores `mobile` — key mismatch, mobile lost on restart | **FIXED** |
 | **R3** | `views/customer.py:919-921` | Cart remove uses stale positional index — wrong item removed or IndexError after shift | **FIXED** |
 | **R4** | `views/pricing.py:194-195` | New items created with zero price — invisible in customer catalogue (filtered `gt.0`) | Pending |
-| **R5** | `views/pricing.py:42-43` | FilePicker overlay leak — every Add Item visit appends new picker, never removed | Pending |
+| **R5** | `views/pricing.py:42-43` | FilePicker overlay leak — every Add Item visit appends new picker, never removed | **FIXED** (June 11 — Manage Categories FilePicker is now singleton) |
 | **R6** | `views/pricing.py:216-226` | Save reports "✅ Item saved!" even when ALL 4+ DB update calls fail — no return-value checks | Pending |
 | **R7** | `views/pricing.py:336` | `it["selling_price"] - it["cost_price"]` direct access — KeyError crashes catalogue render | Pending |
 | **R8** | `db.py:737-747` | `save_item_materials()` deletes before insert with no rollback — data loss on insert failure | Pending |
@@ -717,7 +775,7 @@ Full regression audit across 12 major flows. 30+ bugs found. Organized by severi
 | H8 | `views/customer.py:60` | `customer["id"]` direct access — KeyError if DB column renamed | Pending |
 | H9 | `views/customer.py:73-74` | `save_session()` IO exception crashes login after successful PIN auth | Pending |
 | H10 | `views/customers.py:59-62,168-178` | Block/Edit always shows success snackbar even when DB PATCH fails | Pending |
-| H11 | `views/pricing.py:218` | `card_path` overwritten with `""` on every save — destroys existing card paths | Pending |
+| H11 | `views/pricing.py:218` / `db.py:442` | `card_path` overwritten with `""` on every save — **FIXED**: `card_path` column removed from code and DB, dead Cloudinary price-card system fully cleaned up | **FIXED** |
 | H12 | `main.py:618-642` | `go_back()` doesn't guard against open dialogs — state corruption | Pending |
 
 ### 🟡 MEDIUM Priority
@@ -730,7 +788,7 @@ Full regression audit across 12 major flows. 30+ bugs found. Organized by severi
 | M4 | `views/pricing.py:576` | `float("")` on empty custom margin crashes costing detail | Pending |
 | M5 | `db.py:792` | PIN uniqueness check false positive on network error (`_get` returns `[]`) | **FIXED** |
 | M6 | `views/customer.py:108` | Cache path doesn't filter zero-price items, DB path does — inconsistency | **FIXED** |
-| M7 | `views/customer.py:1067-1069` | ft.Card inside ft.ListView blocks touch on buttons (KNOWN_ISSUES.md #2) | Pending |
+| M7 | `views/customer.py:1067-1069` | ft.Card inside ft.ListView blocks touch on buttons (KNOWN_ISSUES.md #2) | **FIXED** (June 11 — all risky ft.Card → ft.Container across 4 files + Column expand wrapper) |
 | M8 | `views/pricing.py:386-398` | Rapid hide/show clicks race condition — wrong toggle state | Pending |
 | M9 | `views/orders.py:840-843` | Edit order always sets mixed mode even for single-category orders | Pending |
 | M10 | `views/orders.py:1044,1086` | Share PDF double-click guard flag set but never checked | Pending |

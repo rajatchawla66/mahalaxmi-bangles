@@ -344,7 +344,7 @@ def view_order_form(page: ft.Page):
                 cat = row_category["value"]
                 if cat:
                     return [it["item_number"] for it in all_available
-                            if it.get("category") == cat]
+                            if it.get("category", "").strip().lower() == cat.strip().lower()]
                 return []
             else:
                 return item_numbers
@@ -658,9 +658,9 @@ def view_order_form(page: ft.Page):
     body = ft.ListView(
         expand=True, spacing=12, padding=12,
         controls=[
-            customer_card,
-            items_card,
-            summary_card,
+            ft.Column([customer_card], expand=True),
+            ft.Column([items_card], expand=True),
+            ft.Column([summary_card], expand=True),
             ft.Row([save_button]),
             ft.Container(height=24),
         ],

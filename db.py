@@ -405,7 +405,7 @@ def get_customer_catalogue_by_category(category: str, sub_category: str = None) 
     return rows
 
 
-def get_all_items_with_cards(raise_errors: bool = False) -> list:
+def get_all_items(raise_errors: bool = False) -> list:
     rows = _get("rate_list", "order=item_number.asc", raise_errors=raise_errors)
     for r in rows:
         r["image_url"] = r.get("image_url", "")
@@ -439,10 +439,9 @@ def set_item_availability(item_number: str, is_available: bool) -> bool:
 
 
 
-def update_item_image_and_card(item_number: str, image_url: str,
-                               card_path: str) -> bool:
+def update_item_image(item_number: str, image_url: str) -> bool:
     return _patch("rate_list", f"item_number=eq.{quote(item_number)}", {
-        "image_url": image_url, "card_path": card_path,
+        "image_url": image_url,
     })
 
 

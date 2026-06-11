@@ -1,7 +1,6 @@
 venv/
 build/
 product_images/
-generated_cards/
 item_images/
 storage/
 cache/

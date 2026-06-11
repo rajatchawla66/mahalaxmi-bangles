@@ -215,7 +215,7 @@ def view_add_item(page: ft.Page):
 
         if existing:
             db.update_item_prices(item_no, cp_val, sp_val)
-            db.update_item_image_and_card(item_no, final_image_url, "")
+            db.update_item_image(item_no, final_image_url)
             db.update_item_category(item_no, selected_category, selected_sub_category)
             db.update_item_properties(item_no, has_sizes_switch.value, has_color_switch.value)
         else:
@@ -291,7 +291,7 @@ def view_catalogue(page: ft.Page):
 
         def fetch_latest_catalog():
             try:
-                latest = db.get_all_items_with_cards(raise_errors=True)
+                latest = db.get_all_items(raise_errors=True)
                 state["catalog_cache"] = latest
                 import json
                 import time

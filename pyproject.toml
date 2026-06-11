@@ -16,7 +16,6 @@ adaptive_icon_foreground = "assets/icon.png"
 exclude = [
     "build",
     "product_images",
-    "generated_cards",
     "item_images",
     "storage",
     "cache",

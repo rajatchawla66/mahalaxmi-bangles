@@ -299,6 +299,13 @@ def view_order_form(page: ft.Page):
         line_total_text = ft.Text("", size=12, color=ft.Colors.GREY_700)
         category_fields_column = ft.Column(spacing=8)
 
+        image_thumb = ft.Image(src="", width=64, height=64, fit=ft.ImageFit.COVER, border_radius=8, visible=False)
+        image_placeholder = ft.Container(
+            width=64, height=64, bgcolor=ft.Colors.GREY_100, border_radius=8,
+            alignment=ft.alignment.center,
+            content=ft.Icon(ft.Icons.IMAGE, size=28, color=ft.Colors.GREY_400),
+        )
+
         # In mixed mode: track which category is selected for this row
         row_category = {"value": ci.get("category", "")}
 
@@ -332,8 +339,18 @@ def view_order_form(page: ft.Page):
             info = rate_lookup.get(item_no)
             if info:
                 sp_text.value = f"🟢 ₹{info['selling_price']:.2f}"
+                img_url = info.get("image_url", "")
+                if _is_valid_image(img_url):
+                    image_thumb.src = img_url
+                    image_thumb.visible = True
+                    image_placeholder.visible = False
+                else:
+                    image_thumb.visible = False
+                    image_placeholder.visible = True
             else:
                 sp_text.value = ""
+                image_thumb.visible = False
+                image_placeholder.visible = True
 
         def refresh_line_total():
             item_no = ci.get("item_number", "")
@@ -440,8 +457,13 @@ def view_order_form(page: ft.Page):
         if row_cat_dd:
             row_controls.append(row_cat_dd)
 
+        image_area = ft.Stack([image_placeholder, image_thumb], width=64, height=64)
         row_controls.extend([
-            ft.Column([item_dd, sp_text], spacing=4),
+            ft.Row(
+                spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+                controls=[image_area, ft.Column([item_dd, sp_text], expand=True, spacing=4)],
+            ),
             category_fields_column,
             line_total_text,
         ])
@@ -453,18 +475,13 @@ def view_order_form(page: ft.Page):
             content=ft.Column(spacing=6, controls=row_controls),
         )
 
-    def add_cart_row(_):
-        if not is_mixed and not item_numbers:
-            snack("Add items to the Rate List first.", ft.Colors.ORANGE_600)
-            return
-        if is_mixed and not all_available:
-            snack("Add items to the Rate List first.", ft.Colors.ORANGE_600)
-            return
+    def _add_row(category):
+        cat = category or selected_cat or ""
         state["cart_uid"] += 1
         state["cart"].append({
             "uid": state["cart_uid"],
             "item_number": "",
-            "category": selected_cat or "",
+            "category": cat,
             "qty_2_2": 0, "qty_2_4": 0, "qty_2_6": 0,
             "qty_2_8": 0, "qty_2_10": 0,
             "quantity": 0, "unit": None, "color": None,
@@ -472,6 +489,53 @@ def view_order_form(page: ft.Page):
             "notes": None, "sub_category": None,
         })
         render_cart()
+
+    def _show_category_picker():
+        def _pick(cat):
+            dlg.open = False
+            page.update()
+            _add_row(cat)
+
+        cat_controls = []
+        for cat in active_categories:
+            color = page.CATEGORY_COLORS.get(cat, ft.Colors.GREY_400)
+            icon = page.CATEGORY_ICONS.get(cat, ft.Icons.CATEGORY)
+            cat_controls.append(
+                ft.Container(
+                    on_click=lambda _, c=cat: _pick(c),
+                    padding=12,
+                    ink=True,
+                    content=ft.Row([
+                        ft.Container(width=4, height=24, bgcolor=color, border_radius=2),
+                        ft.Icon(icon, size=20, color=color),
+                        ft.Text(cat.replace("_", " "), size=14, weight="bold"),
+                    ], spacing=10),
+                )
+            )
+            cat_controls.append(ft.Divider(height=1, color=ft.Colors.GREY_200))
+
+        if cat_controls and isinstance(cat_controls[-1], ft.Divider):
+            cat_controls.pop()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Select Category"),
+            content=ft.Column(cat_controls, scroll=ft.ScrollMode.AUTO, tight=True, width=280),
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
+    def add_cart_row(_):
+        if not is_mixed and not item_numbers:
+            snack("Add items to the Rate List first.", ft.Colors.ORANGE_600)
+            return
+        if is_mixed and not all_available:
+            snack("Add items to the Rate List first.", ft.Colors.ORANGE_600)
+            return
+        if is_mixed:
+            _show_category_picker()
+        else:
+            _add_row(selected_cat)
 
     def save_order(_):
         if not customer_tf.value.strip():
@@ -585,19 +649,16 @@ def view_order_form(page: ft.Page):
 
     mode_label = "Mixed" if is_mixed else (selected_cat or "Single")
     items_header = ft.Row(
-        [
-            ft.Row(spacing=6, controls=[
-                ft.Text("🛒 Items", size=16, weight="bold"),
-                ft.Container(
-                    padding=ft.Padding(6, 2, 6, 2),
-                    bgcolor=ft.Colors.INDIGO_50 if is_mixed else ft.Colors.AMBER_50,
-                    border_radius=4,
-                    content=ft.Text(mode_label, size=10, color=ft.Colors.INDIGO_700 if is_mixed else ft.Colors.AMBER_800, weight="bold"),
-                ),
-            ]),
-            ft.FilledTonalButton("➕ Add Item", on_click=add_cart_row, disabled=not item_numbers),
+        spacing=6,
+        controls=[
+            ft.Text("🛒 Items", size=16, weight="bold"),
+            ft.Container(
+                padding=ft.Padding(6, 2, 6, 2),
+                bgcolor=ft.Colors.INDIGO_50 if is_mixed else ft.Colors.AMBER_50,
+                border_radius=4,
+                content=ft.Text(mode_label, size=10, color=ft.Colors.INDIGO_700 if is_mixed else ft.Colors.AMBER_800, weight="bold"),
+            ),
         ],
-        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
 
     items_card = ft.Container(
@@ -617,6 +678,11 @@ def view_order_form(page: ft.Page):
         ]),
     )
 
+    add_item_btn = ft.OutlinedButton(
+        "+ Add Item", icon=ft.Icons.ADD,
+        on_click=add_cart_row, height=48,
+        disabled=not item_numbers,
+    )
     save_button = ft.FilledButton(
         "💾 Save Order", icon=ft.Icons.SAVE,
         on_click=save_order, height=48, expand=True,
@@ -635,7 +701,7 @@ def view_order_form(page: ft.Page):
         padding=ft.Padding(12, 8, 12, 12),
         bgcolor=ft.Colors.WHITE,
         border=ft.border.only(top=ft.border.BorderSide(1, ft.Colors.GREY_200)),
-        content=save_button,
+        content=ft.Row([add_item_btn, save_button], spacing=8),
     )
 
     return ft.Column(

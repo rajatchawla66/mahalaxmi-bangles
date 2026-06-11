@@ -606,22 +606,23 @@ def view_order_form(page: ft.Page):
         ),
     ])
 
-    customer_card = ft.Card(
-        elevation=3,
-        content=ft.Container(
-            padding=12, border_radius=10,
-            content=ft.Column(spacing=10, controls=[
-                ft.Text("👤 Order Details", size=16, weight="bold"),
-                ft.Row(spacing=10, controls=[
-                    customer_tf,
-                    date_tf,
-                ]),
-                ft.Row(spacing=10, controls=[
-                    packing_dd,
-                    notes_tf,
-                ]),
+    _card_shadow = ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2))
+
+    customer_card = ft.Container(
+        padding=12, border_radius=10, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        shadow=_card_shadow,
+        content=ft.Column(spacing=10, controls=[
+            ft.Text("👤 Order Details", size=16, weight="bold"),
+            ft.Row(spacing=10, controls=[
+                customer_tf,
+                date_tf,
             ]),
-        ),
+            ft.Row(spacing=10, controls=[
+                packing_dd,
+                notes_tf,
+            ]),
+        ]),
     )
 
     items_header = ft.Row(
@@ -632,23 +633,21 @@ def view_order_form(page: ft.Page):
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
 
-    items_card = ft.Card(
-        elevation=3,
-        content=ft.Container(
-            padding=12, border_radius=10,
-            content=ft.Column(spacing=10, controls=[items_header, cart_column]),
-        ),
+    items_card = ft.Container(
+        padding=12, border_radius=10, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        shadow=_card_shadow,
+        content=ft.Column(spacing=10, controls=[items_header, cart_column]),
     )
 
-    summary_card = ft.Card(
-        elevation=3,
-        content=ft.Container(
-            padding=12, border_radius=10,
-            content=ft.Column(spacing=10, controls=[
-                ft.Text("📊 Summary", size=16, weight="bold"),
-                summary_column,
-            ]),
-        ),
+    summary_card = ft.Container(
+        padding=12, border_radius=10, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        shadow=_card_shadow,
+        content=ft.Column(spacing=10, controls=[
+            ft.Text("📊 Summary", size=16, weight="bold"),
+            summary_column,
+        ]),
     )
 
     save_button = ft.FilledButton(

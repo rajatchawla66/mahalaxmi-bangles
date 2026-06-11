@@ -72,36 +72,35 @@ def view_manage_customers(page: ft.Page):
                 return _h
 
             cards.append(
-                ft.Card(
-                    elevation=2,
-                    content=ft.Container(
-                        padding=12,
-                        content=ft.Column(spacing=6, controls=[
-                            ft.Row([
-                                ft.Text(c.get("shop_name", "?"), size=16, weight="bold", expand=True),
-                                ft.Container(
-                                    padding=ft.Padding(left=6, right=6, top=2, bottom=2),
-                                    bgcolor=status_color,
-                                    border_radius=4,
-                                    content=ft.Text(status_label, size=10, color=ft.Colors.WHITE, weight="bold"),
-                                ),
-                            ]),
-                            ft.Text(f"{c.get('owner_name', '')}  |  {c.get('mobile', '')}", size=12, color=ft.Colors.GREY_700),
-                            ft.Row(spacing=12, controls=[
-                                ft.Text("PIN:", size=11, color=ft.Colors.GREY_600),
-                                pin_row,
-                            ]),
-                            ft.Row(spacing=8, controls=[
-                                ft.Text(f"Last login: {last_active_str}", size=11, color=ft.Colors.GREY_500),
-                            ]),
-                            ft.Row(spacing=4, controls=[
-                                ft.TextButton("✏️ Edit", on_click=make_edit_handler(c)),
-                                ft.TextButton("🔒 Block" if is_active else "🔓 Unblock",
-                                    on_click=make_block_handler(cid, is_active),
-                                    style=ft.ButtonStyle(color=ft.Colors.RED_600 if is_active else ft.Colors.GREEN_700)),
-                            ]),
+                ft.Container(
+                    padding=12, border_radius=8, bgcolor=ft.Colors.WHITE,
+                    border=ft.border.all(1, ft.Colors.GREY_200),
+                    shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                    content=ft.Column(spacing=6, controls=[
+                        ft.Row([
+                            ft.Text(c.get("shop_name", "?"), size=16, weight="bold", expand=True),
+                            ft.Container(
+                                padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+                                bgcolor=status_color,
+                                border_radius=4,
+                                content=ft.Text(status_label, size=10, color=ft.Colors.WHITE, weight="bold"),
+                            ),
                         ]),
-                    ),
+                        ft.Text(f"{c.get('owner_name', '')}  |  {c.get('mobile', '')}", size=12, color=ft.Colors.GREY_700),
+                        ft.Row(spacing=12, controls=[
+                            ft.Text("PIN:", size=11, color=ft.Colors.GREY_600),
+                            pin_row,
+                        ]),
+                        ft.Row(spacing=8, controls=[
+                            ft.Text(f"Last login: {last_active_str}", size=11, color=ft.Colors.GREY_500),
+                        ]),
+                        ft.Row(spacing=4, controls=[
+                            ft.TextButton("✏️ Edit", on_click=make_edit_handler(c)),
+                            ft.TextButton("🔒 Block" if is_active else "🔓 Unblock",
+                                on_click=make_block_handler(cid, is_active),
+                                style=ft.ButtonStyle(color=ft.Colors.RED_600 if is_active else ft.Colors.GREEN_700)),
+                        ]),
+                    ]),
                 )
             )
         customer_list.controls = cards

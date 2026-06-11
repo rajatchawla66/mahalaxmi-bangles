@@ -1216,32 +1216,31 @@ def view_customer_my_orders(page: ft.Page):
             detail_column.controls = build_detail_rows()
 
             cards.append(
-                ft.Card(
-                    elevation=1,
-                    content=ft.Container(
-                        padding=12,
-                        content=ft.Column(spacing=6, controls=[
-                            ft.Row([
-                                ft.Text(f"#{oid}", size=15, weight="bold", expand=True),
-                                ft.Text(date_str, size=12, color=ft.Colors.GREY_600),
-                            ]),
-                            ft.Row([
-                                ft.Text(name, size=13, color=ft.Colors.GREY_700, expand=True),
-                                ft.Container(
-                                    padding=ft.Padding(8, 2, 8, 2),
-                                    bgcolor=status_color,
-                                    border_radius=4,
-                                    content=ft.Text(status_label, size=10, color=ft.Colors.WHITE, weight="bold"),
-                                ),
-                            ]),
-                            ft.Row([
-                                ft.Text(f"₹{total:,.0f}", size=16, weight="bold", color=ft.Colors.GREEN_700, expand=True),
-                                ft.TextButton("View Details", on_click=toggle_detail),
-                            ]),
-                            ft.Container(height=2),
-                            detail_column,
+                ft.Container(
+                    padding=12, border_radius=8, bgcolor=ft.Colors.WHITE,
+                    border=ft.border.all(1, ft.Colors.GREY_200),
+                    shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                    content=ft.Column(spacing=6, controls=[
+                        ft.Row([
+                            ft.Text(f"#{oid}", size=15, weight="bold", expand=True),
+                            ft.Text(date_str, size=12, color=ft.Colors.GREY_600),
                         ]),
-                    ),
+                        ft.Row([
+                            ft.Text(name, size=13, color=ft.Colors.GREY_700, expand=True),
+                            ft.Container(
+                                padding=ft.Padding(8, 2, 8, 2),
+                                bgcolor=status_color,
+                                border_radius=4,
+                                content=ft.Text(status_label, size=10, color=ft.Colors.WHITE, weight="bold"),
+                            ),
+                        ]),
+                        ft.Row([
+                            ft.Text(f"₹{total:,.0f}", size=16, weight="bold", color=ft.Colors.GREEN_700, expand=True),
+                            ft.TextButton("View Details", on_click=toggle_detail),
+                        ]),
+                        ft.Container(height=2),
+                        detail_column,
+                    ]),
                 )
             )
         return cards

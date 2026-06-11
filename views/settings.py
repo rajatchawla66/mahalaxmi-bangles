@@ -68,11 +68,12 @@ def view_settings(page: ft.Page):
         padding=20,
         spacing=20,
         controls=[
-            ft.Card(
-                content=ft.Container(
-                    padding=ft.Padding(left=0, top=8, right=0, bottom=8),
-                    content=items,
-                )
+            ft.Container(
+                border_radius=8, bgcolor=ft.Colors.WHITE,
+                border=ft.border.all(1, ft.Colors.GREY_200),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                padding=ft.Padding(left=0, top=8, right=0, bottom=8),
+                content=items,
             ),
         ]
     )
@@ -111,16 +112,16 @@ def view_settings_margin(page: ft.Page):
         padding=20,
         spacing=20,
         controls=[
-            ft.Card(
-                content=ft.Container(
-                    padding=20,
-                    content=ft.Column(spacing=16, controls=[
-                        ft.Text("Default Margin %", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Set the default profit margin used in cost calculations.", size=12, color=ft.Colors.GREY_600),
-                        margin_tf,
-                        ft.FilledButton("💾 Save Margin", on_click=save_margin, height=44),
-                    ]),
-                ),
+            ft.Container(
+                padding=20, border_radius=8, bgcolor=ft.Colors.WHITE,
+                border=ft.border.all(1, ft.Colors.GREY_200),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                content=ft.Column(spacing=16, controls=[
+                    ft.Text("Default Margin %", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Set the default profit margin used in cost calculations.", size=12, color=ft.Colors.GREY_600),
+                    margin_tf,
+                    ft.FilledButton("💾 Save Margin", on_click=save_margin, height=44),
+                ]),
             ),
         ],
     )
@@ -191,21 +192,21 @@ def view_settings_materials(page: ft.Page):
         padding=20,
         spacing=20,
         controls=[
-            ft.Card(
-                content=ft.Container(
-                    padding=20,
-                    content=ft.Column(spacing=12, controls=[
-                        ft.Text("Material Master", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Set raw material rates used in the Cost Calculator.", size=12, color=ft.Colors.GREY_600),
-                        ft.Row([
-                            new_mat_name,
-                            new_mat_rate,
-                            ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600, on_click=add_material),
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Divider(height=1),
-                        materials_list,
-                    ]),
-                ),
+            ft.Container(
+                padding=20, border_radius=8, bgcolor=ft.Colors.WHITE,
+                border=ft.border.all(1, ft.Colors.GREY_200),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                content=ft.Column(spacing=12, controls=[
+                    ft.Text("Material Master", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Text("Set raw material rates used in the Cost Calculator.", size=12, color=ft.Colors.GREY_600),
+                    ft.Row([
+                        new_mat_name,
+                        new_mat_rate,
+                        ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600, on_click=add_material),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=1),
+                    materials_list,
+                ]),
             ),
         ],
     )
@@ -239,8 +240,21 @@ def view_manage_categories(page: ft.Page):
         content=ft.Text("No cover image", size=10, color=ft.Colors.GREY_500),
     )
 
-    # ---- File picker (callback-based for Flet 0.28.3) ----
-    _picker_ctx = {}
+    # ---- Singleton FilePicker (reused across visits) ----
+    if not hasattr(page, "_category_file_picker"):
+        def _on_pick_result(e: ft.FilePickerResultEvent):
+            if not e.files:
+                return
+            src = e.files[0].path
+            ctx = getattr(page, "_category_picker_context", None)
+            if ctx:
+                cb = ctx.pop("callback", None)
+                if cb:
+                    cb(src)
+
+        page._category_file_picker = ft.FilePicker(on_result=_on_pick_result)
+        page.overlay.append(page._category_file_picker)
+        page._category_picker_context = {}
 
     def _new_cover_picked(src):
         picked_cover["path"] = src
@@ -261,20 +275,9 @@ def view_manage_categories(page: ft.Page):
         else:
             snack("❌ Upload failed", ft.Colors.RED_500)
 
-    def on_pick_result(e: ft.FilePickerResultEvent):
-        if not e.files:
-            return
-        src = e.files[0].path
-        cb = _picker_ctx.pop("callback", None)
-        if cb:
-            cb(src)
-
-    file_picker = ft.FilePicker(on_result=on_pick_result)
-    page.overlay.append(file_picker)
-
     def pick_cover_new(_):
-        _picker_ctx["callback"] = lambda src: _new_cover_picked(src)
-        file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
+        page._category_picker_context["callback"] = lambda src: _new_cover_picked(src)
+        page._category_file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
 
     # --- Add new category form ---
     name_tf = ft.TextField(label="Category Name *", hint_text="e.g., Payal")
@@ -336,8 +339,8 @@ def view_manage_categories(page: ft.Page):
 
             def make_change_cover_handler(cid, cname):
                 def _h(_):
-                    _picker_ctx["callback"] = lambda src: _change_cover_picked(src, cid, cname)
-                    file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
+                    page._category_picker_context["callback"] = lambda src: _change_cover_picked(src, cid, cname)
+                    page._category_file_picker.pick_files(file_type=ft.FilePickerFileType.IMAGE)
                 return _h
 
             status_badge = ft.Container(
@@ -359,44 +362,46 @@ def view_manage_categories(page: ft.Page):
                         ft.Icon(page.CATEGORY_ICONS.get(cat["name"], ft.Icons.CATEGORY), color=cat_color, size=24)
             )
 
-            cards.append(ft.Card(
-                elevation=2,
-                content=ft.Container(
-                    padding=12,
-                    border=ft.Border(left=ft.BorderSide(4, cat_color)),
-                    border_radius=8,
-                    content=ft.Column(spacing=6, controls=[
-                        ft.Row([
-                            thumb,
-                            ft.Column(expand=True, spacing=2, controls=[
-                                ft.Text(cat["name"], size=15, weight="bold"),
-                                ft.Text(cat.get("description", ""), size=11,
-                                        color=ft.Colors.GREY_700),
-                            ]),
-                            status_badge,
-                        ], spacing=10),
-                        ft.Row([
-                            ft.Text(f"Type: {cat.get('order_type', 'quantity')}",
-                                    size=11, color=ft.Colors.GREY_600),
-                            ft.Text(
-                                f"Subs: {cat.get('sub_categories', '') or '—'}",
-                                size=11, color=ft.Colors.GREY_600,
-                            ),
-                        ], spacing=12),
-                        ft.Row([
-                            ft.TextButton(
-                                "Deactivate" if is_active else "Activate",
-                                on_click=make_toggle_handler(cat["id"], is_active),
-                            ),
-                            ft.TextButton("🖼️ Cover", on_click=make_change_cover_handler(cat["id"], cat["name"])),
-                            ft.TextButton(
-                                "Delete",
-                                on_click=make_delete_handler(cat["id"], cat["name"]),
-                                style=ft.ButtonStyle(color=ft.Colors.RED_500),
-                            ),
-                        ], spacing=8),
-                    ]),
+            cards.append(ft.Container(
+                padding=12, border_radius=8, bgcolor=ft.Colors.WHITE,
+                border=ft.Border(
+                    left=ft.BorderSide(4, cat_color),
+                    right=ft.BorderSide(1, ft.Colors.GREY_200),
+                    top=ft.BorderSide(1, ft.Colors.GREY_200),
+                    bottom=ft.BorderSide(1, ft.Colors.GREY_200),
                 ),
+                shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+                content=ft.Column(spacing=6, controls=[
+                    ft.Row([
+                        thumb,
+                        ft.Column(expand=True, spacing=2, controls=[
+                            ft.Text(cat["name"], size=15, weight="bold"),
+                            ft.Text(cat.get("description", ""), size=11,
+                                    color=ft.Colors.GREY_700),
+                        ]),
+                        status_badge,
+                    ], spacing=10),
+                    ft.Row([
+                        ft.Text(f"Type: {cat.get('order_type', 'quantity')}",
+                                size=11, color=ft.Colors.GREY_600),
+                        ft.Text(
+                            f"Subs: {cat.get('sub_categories', '') or '—'}",
+                            size=11, color=ft.Colors.GREY_600,
+                        ),
+                    ], spacing=12),
+                    ft.Row([
+                        ft.TextButton(
+                            "Deactivate" if is_active else "Activate",
+                            on_click=make_toggle_handler(cat["id"], is_active),
+                        ),
+                        ft.TextButton("🖼️ Cover", on_click=make_change_cover_handler(cat["id"], cat["name"])),
+                        ft.TextButton(
+                            "Delete",
+                            on_click=make_delete_handler(cat["id"], cat["name"]),
+                            style=ft.ButtonStyle(color=ft.Colors.RED_500),
+                        ),
+                    ], spacing=8),
+                ]),
             ))
         cat_list_column.controls = cards
 
@@ -434,33 +439,32 @@ def view_manage_categories(page: ft.Page):
 
     refresh_cat_list()
 
-    add_card = ft.Card(
-        elevation=3,
-        content=ft.Container(
-            padding=12, border_radius=10,
-            content=ft.Column(spacing=10, controls=[
-                ft.Text("➕ Add New Category", size=16, weight="bold"),
-                ft.Row([
-                    preview_img,
-                    ft.Column([
-                        ft.ElevatedButton("📷 Cover", icon=ft.Icons.IMAGE, on_click=pick_cover_new),
-                        ft.Text("Recommended: 4:3 ratio", size=10, color=ft.Colors.GREY_600),
-                    ], spacing=5)
-                ], spacing=15),
-                name_tf,
-                ft.Row(spacing=10, controls=[
-                    icon_dd,
-                    color_dd,
-                ]),
-                desc_tf,
-                sub_cats_tf,
-                order_type_dd,
-                ft.FilledButton(
-                    "💾 Add Category", icon=ft.Icons.ADD,
-                    on_click=add_new_category, height=44, expand=True,
-                ),
+    add_card = ft.Container(
+        padding=12, border_radius=10, bgcolor=ft.Colors.WHITE,
+        border=ft.border.all(1, ft.Colors.GREY_200),
+        shadow=ft.BoxShadow(spread_radius=0, blur_radius=4, color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK), offset=ft.Offset(0, 2)),
+        content=ft.Column(spacing=10, controls=[
+            ft.Text("➕ Add New Category", size=16, weight="bold"),
+            ft.Row([
+                preview_img,
+                ft.Column([
+                    ft.ElevatedButton("📷 Cover", icon=ft.Icons.IMAGE, on_click=pick_cover_new),
+                    ft.Text("Recommended: 4:3 ratio", size=10, color=ft.Colors.GREY_600),
+                ], spacing=5)
+            ], spacing=15),
+            name_tf,
+            ft.Row(spacing=10, controls=[
+                icon_dd,
+                color_dd,
             ]),
-        ),
+            desc_tf,
+            sub_cats_tf,
+            order_type_dd,
+            ft.FilledButton(
+                "💾 Add Category", icon=ft.Icons.ADD,
+                on_click=add_new_category, height=44, expand=True,
+            ),
+        ]),
     )
 
     body = ft.ListView(

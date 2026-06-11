@@ -481,6 +481,18 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-025: Labour Production Checklist — status button does not visually update after tap
+| Field | Detail |
+|-------|--------|
+| **Date** | June 11, 2026 |
+| **Symptom** | Tapping a production status button (pending/prepared/not_available) on labour checklist updates the progress summary correctly but the tapped button's text/color stays frozen. Close/reopen shows correct persisted state. |
+| **Root Cause** | `status_btn` container's `bgcolor` and `content` (`ft.Text`) were assigned static values at card-build time (lines 162-171, 186-196). The toggle handler (`_make_toggle_handler`, line 87-107) mutated the backing dict (`status_ref[size_key]`) and called `page.update()`, but **never reassigned** `e.control.bgcolor` or `e.control.content`. Flet re-rendered the button with the same stale property values. |
+| **Fix** | Added 3 lines inside `_h()` after `status_ref[size_key] = next_st`: look up `next_color, next_label` from `STATUS_STYLES[next_st]`, update `e.control.bgcolor` with `ft.Colors.with_opacity(0.12, next_color)`, and replace `e.control.content` with a new `ft.Text(next_label, size=12, weight="bold", color=next_color)`. Since `e.control` IS the `status_btn` container, no structural or layout changes needed. |
+| **Files** | `views/labour.py:87-107` (`_make_toggle_handler`) |
+| **Lesson** | When a control's appearance depends on mutable state, the handler that mutates that state must also update the control's visual properties directly. `page.update()` only re-renders existing property values — it does not re-read the backing dict to derive new values. |
+
+---
+
 ### BUG-024: Admin Order Form — Dropdown on_select never fires, missing return controls
 | Field | Detail |
 |-------|--------|
@@ -575,6 +587,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Order Form Phase B — Packing structure fully removed from UI/save/slips/PDF/DB layer. Sticky save button (always visible at bottom). Visible red Remove button per item. Tighter item row spacing.
 - Order Form Phase C — Image thumbnail (64×64, rounded) appears after item selection with placeholder icon fallback. Smart Add Item: mixed order opens category picker dialog that pre-selects category in the new row. Sticky bottom bar with outlined [+ Add Item] + filled [Save Order] always visible.
 - Labour Production Checklist V1 — per-size status toggle (pending→prepared→not_available→pending), image thumbnails, progress summary, JSONB column in order_items.
+- Labour Production Checklist V2 — Image-first cards (260px portrait, COVER fit, radius 12), direct routing (labour taps order → checklist, bypasses order_detail), BACK_MAP to home, pill-shaped status buttons (border_radius=20, padding 12,8).
+- BUG-025: Status buttons now visually update immediately on tap (e.control.bgcolor/content updated in handler).
 - Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
 - Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
 
@@ -696,6 +710,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 11, 2026 | Labour Production Checklist — Image-first redesign + BUG-025 fix. Direct routing (labour taps order → checklist directly). BACK_MAP updated (checklist → home). Cards redesigned: 260px portrait image, pill-shaped status buttons (border_radius=20, padding 12,8), subtle text. BUG-025 fix: added 3 lines to `_make_toggle_handler` to update `e.control.bgcolor` and `e.control.content` after dict mutation. | `views/home.py`, `main.py`, `views/labour.py`, `PROJECT_MEMORY.md` | Complete — pushed `b51ee6d` |
 | June 11, 2026 | Admin Order Detail visual redesign — per-size production status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), 64px product image thumbnails, category group headers, per-item pricing, production summary at top. Labour text rendering unchanged. Replaced ft.Card with ft.Container for admin. | `views/orders.py` | Complete — pushed |
 | June 11, 2026 | Labour Production Checklist V1 — new views/labour.py with per-size status toggle, image thumbnails, progress summary. SQL migration file for JSONB column. Role-aware buttons in order detail. Admin read-only production status in order detail text. | `views/labour.py` (new), `views/orders.py`, `db.py`, `main.py`, `sql/migration_add_production_status.sql` (new) | Complete — pushed `b38fbfe` |
 | June 11, 2026 | Admin Home production summary — per-order production progress on admin order cards (Production: ✅ 3/10 ⚠ 1). Uses existing embedded order_items data, no new queries. | `views/home.py` | Complete — pushed |

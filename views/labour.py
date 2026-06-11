@@ -90,6 +90,10 @@ def view_production_checklist(page: ft.Page):
             next_st = _next_status(current)
             status_ref[size_key] = next_st
 
+            next_color, next_label = STATUS_STYLES[next_st]
+            e.control.bgcolor = ft.Colors.with_opacity(0.12, next_color)
+            e.control.content = ft.Text(next_label, size=12, weight="bold", color=next_color)
+
             # Persist all statuses for this item
             item_statuses = {}
             for sk in SIZE_KEYS:

@@ -505,7 +505,7 @@ async def main(page: ft.Page):
         "settings_margin": "settings",
         "settings_materials": "settings",
         "karigar_slip": "order_detail",
-        "production_checklist": "order_detail",
+        "production_checklist": "home",
         "sync_page": "settings",
         "orders_archive": "settings",
         "customer_login": "login",

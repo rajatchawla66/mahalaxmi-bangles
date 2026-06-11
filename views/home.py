@@ -42,7 +42,10 @@ def view_home(page: ft.Page):
     def on_order_tap(order_id):
         def _h(_):
             state["detail_order_id"] = order_id
-            go("order_detail")
+            if state["role"] == "labour":
+                go("production_checklist")
+            else:
+                go("order_detail")
         return _h
 
     def _build_order_cards(orders_list):

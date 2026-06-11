@@ -123,36 +123,33 @@ def view_production_checklist(page: ft.Page):
         else:
             status_data = {}
 
-        # Image
+        # Large portrait image
         img_url = image_lookup.get(item_no, "")
         if _is_valid_image(img_url):
-            thumb = ft.Image(src=img_url, width=64, height=64, fit=ft.ImageFit.COVER, border_radius=8)
+            image = ft.Image(src=img_url, width=None, height=260, fit=ft.ImageFit.COVER, border_radius=12)
         else:
-            thumb = ft.Container(
-                width=64, height=64, bgcolor=ft.Colors.GREY_100, border_radius=8,
+            image = ft.Container(
+                height=260, bgcolor=ft.Colors.GREY_100, border_radius=12,
                 alignment=ft.alignment.center,
-                content=ft.Icon(ft.Icons.IMAGE, size=28, color=ft.Colors.GREY_400),
+                content=ft.Column(
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=4,
+                    controls=[
+                        ft.Icon(ft.Icons.IMAGE, size=48, color=ft.Colors.GREY_400),
+                        ft.Text("No image", size=12, color=ft.Colors.GREY_500),
+                    ],
+                ),
             )
 
         # Determine if sized item
         has_sizes = any(_safe_int(item.get(QTY_COLUMN_MAP.get(s, ""), 0)) > 0 for s in SIZE_KEYS)
 
-        # Info column
-        info_col = ft.Column(spacing=2, controls=[
-            ft.Text(item_no, size=14, weight="bold"),
-            ft.Row(spacing=4, controls=[
-                ft.Container(
-                    padding=ft.Padding(4, 1, 4, 1),
-                    bgcolor=page.CATEGORY_COLORS.get(category, ft.Colors.GREY_400),
-                    border_radius=3,
-                    content=ft.Text(category.replace("_", " "), size=9, color=ft.Colors.WHITE, weight="bold"),
-                ),
-            ]),
-        ])
+        # Info bar below image
+        info_controls = [ft.Text(item_no, size=15, weight="bold")]
         if color:
-            info_col.controls.append(ft.Text(f"Color: {color}", size=11, color=ft.Colors.GREY_700))
+            info_controls.append(ft.Text(f"Color: {color}", size=12, color=ft.Colors.GREY_700))
 
-        # Size rows
+        # Size rows with status buttons
         size_rows = []
         if has_sizes:
             for s in SIZE_KEYS:
@@ -166,68 +163,59 @@ def view_production_checklist(page: ft.Page):
 
                 status_btn = ft.Container(
                     on_click=_make_toggle_handler(item_no, s, status_data),
-                    padding=ft.Padding(6, 3, 6, 3),
-                    border_radius=6,
-                    bgcolor=ft.Colors.with_opacity(0.1, st_color),
+                    padding=ft.Padding(12, 8, 12, 8),
+                    border_radius=20,
+                    bgcolor=ft.Colors.with_opacity(0.12, st_color),
                     ink=True,
-                    content=ft.Text(st_label, size=11, weight="bold", color=st_color),
+                    content=ft.Text(st_label, size=12, weight="bold", color=st_color),
                 )
 
                 size_rows.append(
-                    ft.Container(
-                        padding=ft.Padding(0, 0, 0, 4),
-                        content=ft.Row(
-                            spacing=8,
-                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            controls=[
-                                ft.Container(width=40, content=ft.Text(s, size=13, weight="bold")),
-                                ft.Container(width=40, content=ft.Text(str(qty), size=13)),
-                                status_btn,
-                            ],
-                        ),
+                    ft.Row(
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            ft.Container(width=36, content=ft.Text(s, size=14, weight="bold")),
+                            ft.Container(width=36, content=ft.Text(str(qty), size=14)),
+                            status_btn,
+                        ],
                     )
                 )
         else:
-            # Non-sized / simple quantity item
             qty = _safe_int(item.get("quantity", 0))
             current_st = status_data.get("single", "pending")
             st_color, st_label = STATUS_STYLES.get(current_st, STATUS_STYLES["pending"])
 
             status_btn = ft.Container(
                 on_click=_make_toggle_handler(item_no, "single", status_data),
-                padding=ft.Padding(6, 3, 6, 3),
-                border_radius=6,
-                bgcolor=ft.Colors.with_opacity(0.1, st_color),
+                padding=ft.Padding(12, 8, 12, 8),
+                border_radius=20,
+                bgcolor=ft.Colors.with_opacity(0.12, st_color),
                 ink=True,
-                content=ft.Text(st_label, size=11, weight="bold", color=st_color),
+                content=ft.Text(st_label, size=12, weight="bold", color=st_color),
             )
 
             size_rows.append(
-                ft.Container(
-                    padding=ft.Padding(0, 0, 0, 4),
-                    content=ft.Row(
-                        spacing=8,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        controls=[
-                            ft.Container(width=40, content=ft.Text("Qty", size=13, weight="bold")),
-                            ft.Container(width=40, content=ft.Text(str(qty), size=13)),
-                            status_btn,
-                        ],
-                    ),
+                ft.Row(
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    controls=[
+                        ft.Container(width=36, content=ft.Text("Qty", size=14, weight="bold")),
+                        ft.Container(width=36, content=ft.Text(str(qty), size=14)),
+                        status_btn,
+                    ],
                 )
             )
 
-        # Divider between sized rows for readability
-        size_col = ft.Column(spacing=2, controls=size_rows)
-
         item_cards.append(
             ft.Container(
-                padding=12, border_radius=10,
+                padding=12, border_radius=14,
                 bgcolor=ft.Colors.WHITE,
                 border=ft.border.all(1, ft.Colors.GREY_200),
                 content=ft.Column(spacing=8, controls=[
-                    ft.Row(spacing=10, controls=[thumb, info_col]),
-                    size_col,
+                    image,
+                    ft.Row(spacing=6, controls=info_controls),
+                    ft.Column(spacing=6, controls=size_rows),
                 ]),
             )
         )

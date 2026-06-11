@@ -556,6 +556,22 @@ def get_order_items(order_id: int) -> list:
     return _get("order_items", f"order_id=eq.{order_id}")
 
 
+def update_item_production_status(order_id: int, item_number: str, production_status: dict) -> bool:
+    """Update per-size production status for an order item.
+    
+    Args:
+        order_id: The order ID.
+        item_number: The item number within the order.
+        production_status: Dict mapping size keys to status strings.
+            Example: {"2.2": "prepared", "2.4": "pending", "2.6": "not_available"}
+            For non-sized items: {"single": "prepared"}
+    """
+    params = f"order_id=eq.{order_id}&item_number=eq.{quote(item_number)}"
+    return _patch("order_items", params, {
+        "production_status": json.dumps(production_status),
+    })
+
+
 def get_orders_by_customer_id(customer_id: int) -> list:
     return _get("orders", f"customer_id=eq.{customer_id}&select=*,order_items(*)&order=order_id.desc")
 

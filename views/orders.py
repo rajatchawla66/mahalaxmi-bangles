@@ -822,6 +822,26 @@ def view_order_detail(page: ft.Page):
             if it.get("notes"):
                 attr_parts.append(f"Notes: {it['notes']}")
 
+            # Production status read-only (admin)
+            raw_ps = it.get("production_status")
+            if raw_ps and raw_ps != {}:
+                if isinstance(raw_ps, str):
+                    try:
+                        raw_ps = json.loads(raw_ps)
+                    except Exception:
+                        raw_ps = {}
+                if isinstance(raw_ps, dict):
+                    done = sum(1 for v in raw_ps.values() if v == "prepared")
+                    na = sum(1 for v in raw_ps.values() if v == "not_available")
+                    total = len(raw_ps)
+                    parts = []
+                    if done > 0:
+                        parts.append(f"✅{done}")
+                    if na > 0:
+                        parts.append(f"⚠{na}")
+                    if total > 0:
+                        attr_parts.append(f"Prod: {' '.join(parts)}/{total}")
+
             item_info_controls = [
                 ft.Text(item_no, weight="bold", size=13),
             ]
@@ -862,6 +882,10 @@ def view_order_detail(page: ft.Page):
         state["slip_order_id"] = order_id
         go("karigar_slip")
 
+    def open_production_checklist(_):
+        state["detail_order_id"] = order_id
+        go("production_checklist")
+
     def open_edit_order(_):
         state["edit_order_id"] = order_id
         state["edit_order_customer"] = order.get("customer_name", "")
@@ -882,12 +906,18 @@ def view_order_detail(page: ft.Page):
         state["selected_category"] = None
         go("order_form")
 
-    action_row = ft.Row([
-        ft.FilledButton("Edit Order", icon=ft.Icons.EDIT,
-                          style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
-                          on_click=open_edit_order),
-        ft.FilledTonalButton("🧾 Karigar Slip", icon=ft.Icons.RECEIPT, on_click=open_slip),
-    ], wrap=True)
+    if is_admin:
+        action_row = ft.Row([
+            ft.FilledButton("Edit Order", icon=ft.Icons.EDIT,
+                              style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
+                              on_click=open_edit_order),
+            ft.FilledTonalButton("🧾 Karigar Slip", icon=ft.Icons.RECEIPT, on_click=open_slip),
+        ], wrap=True)
+    else:
+        action_row = ft.Row([
+            ft.FilledButton("📋 Production Checklist", icon=ft.Icons.FACT_CHECK,
+                              on_click=open_production_checklist),
+        ], wrap=True)
 
     body_controls = [header_card] + items_blocks + [
         ft.Container(

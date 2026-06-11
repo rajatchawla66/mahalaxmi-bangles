@@ -14,7 +14,7 @@ Project layout:
 """
 
 from __future__ import annotations
-from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer, customers as v_customers, archive as v_archive
+from views import auth as v_auth, home as v_home, orders as v_orders, pricing as v_pricing, settings as v_settings, customer as v_customer, customers as v_customers, archive as v_archive, labour as v_labour
 
 import os
 import shutil
@@ -505,6 +505,7 @@ async def main(page: ft.Page):
         "settings_margin": "settings",
         "settings_materials": "settings",
         "karigar_slip": "order_detail",
+        "production_checklist": "order_detail",
         "sync_page": "settings",
         "orders_archive": "settings",
         "customer_login": "login",
@@ -966,6 +967,9 @@ async def main(page: ft.Page):
         elif cur == "karigar_slip":
             appbar = build_app_bar("Karigar Slip", show_back=True)
             body = v_orders.view_karigar_slip(page)
+        elif cur == "production_checklist":
+            appbar = build_app_bar("Production Checklist", show_back=True)
+            body = v_labour.view_production_checklist(page)
         elif cur == "sync_page":
             appbar = build_app_bar("Sync", show_back=True)
             body = v_settings.view_sync_page(page)

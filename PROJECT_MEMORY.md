@@ -573,6 +573,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Premium Brand Landing Page — Redesigned login screen as premium jewellery-brand landing page. Cream background, gold accents, maroon CTA, centered layout with logo/firm name/subtitle, gold ornamental dividers (`ft.Row` with gold lines + ✦), GST card, PIN login directly on landing page, 2x2 contact cards (Instagram/WhatsApp/Location/YouTube), heritage trust container, small Admin/Labour text links. Old `view_login()` replaced entirely. `customer_login` route preserved as fallback.
 - Order Form Phase A — No image preview in cart rows, compact customer card (full-width fields), single compact summary row (Items | Sets | Amount), mode badge, dead code removed.
 - Order Form Phase B — Packing structure fully removed from UI/save/slips/PDF/DB layer. Sticky save button (always visible at bottom). Visible red Remove button per item. Tighter item row spacing.
+- Order Form Phase C — Image thumbnail (64×64, rounded) appears after item selection with placeholder icon fallback. Smart Add Item: mixed order opens category picker dialog that pre-selects category in the new row. Sticky bottom bar with outlined [+ Add Item] + filled [Save Order] always visible.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -692,6 +693,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 11, 2026 | Order Form Phase C — Image thumbnail (64×64) after item selection with placeholder fallback; smart Add Item for mixed order (category picker dialog pre-selects category); sticky bottom bar with [+ Add Item] + [Save Order] side-by-side; Add Item button removed from items header. | `views/orders.py` | Complete — pushed `62b0d02` |
 | June 11, 2026 | Order Form Phase B — Full packing system removal (packing_dd, packing_structure from save/reload/detail/slips/PDF/DB), sticky save button (ListView + save_bar Column wrapper), visible Remove button (TextButton replacing IconButton), item row spacing tightened (10→6), dead PACKING_OPTIONS removed from utils.py and main.py. Zero Python references to packing_structure remain. DB column still present in Supabase (harmless — never read). | `views/orders.py`, `db.py`, `slip_pdf_generator.py`, `utils.py`, `main.py`, `PROJECT_MEMORY.md` | Complete — committing |
 | June 11, 2026 | Order Form Phase A — Removed 100×100 image preview from cart rows, restructured customer card layout (full-width name, date+packing row, full-width notes), compact summary (single bordered row replacing 3 stat cards), mode badge (Mixed/Single), removed dead `_stat_card_wrap()`, removed stale PACKING_OPTIONS from main.py (kept in utils.py). | `views/orders.py`, `main.py` | Complete — pushed |
 | June 11, 2026 | BUG-024 — Order form dropdowns not firing + missing return controls. Changed on_select→on_change for all 3 dropdowns (item_dd, row_cat_dd, color_dd). Added missing `return controls` in build_category_fields(). | `views/orders.py`, `main.py` | Complete — pushed `c4f0dd2` |

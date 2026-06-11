@@ -424,7 +424,7 @@ def view_order_form(page: ft.Page):
             refresh_summary()
             page.update()
 
-        item_dd.on_select = on_item_change
+        item_dd.on_change = on_item_change
 
         # Category dropdown for mixed mode
         row_cat_dd = None
@@ -450,7 +450,7 @@ def view_order_form(page: ft.Page):
                 refresh_summary()
                 page.update()
 
-            row_cat_dd.on_select = on_row_cat_change
+            row_cat_dd.on_change = on_row_cat_change
 
         def remove_row(_):
             state["cart"] = [x for x in state["cart"] if x["uid"] != uid]

@@ -840,7 +840,7 @@ async def main(page: ft.Page):
                 on_change()
                 pg.update()
     
-            color_dd.on_select = _on_color_select
+            color_dd.on_change = _on_color_select
             custom_tf.on_change = _on_custom_change
             return [color_dd, custom_tf]
     
@@ -865,12 +865,12 @@ async def main(page: ft.Page):
         else:
             # Single quantity stepper (always shown if no sizes)
             controls.append(_build_qty_stepper("Qty", "quantity"))
-    
 
-    # ============================================================
-    # HOME VIEW — Order list + FAB
-    # ============================================================
-    
+        return controls
+
+# ============================================================
+# HOME VIEW — Order list + FAB
+# ============================================================
     page.state = state
     page.go = lambda t: go(t)
     page.go_back = lambda: go_back()

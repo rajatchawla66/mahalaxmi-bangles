@@ -588,7 +588,10 @@ def view_order_form(page: ft.Page):
         }
 
         if state.get("edit_order_id"):
-            db.update_order(state["edit_order_id"], header_data, line_items)
+            ok = db.update_order(state["edit_order_id"], header_data, line_items)
+            if not ok:
+                snack("❌ Failed to update order — check network", ft.Colors.RED_400)
+                return
             snack(f"✅ Order #{state['edit_order_id']} updated (₹{total_amount:,.2f})")
             
             for k in ["edit_order_id", "edit_order_customer", "edit_order_date", "edit_order_notes"]:
@@ -599,6 +602,9 @@ def view_order_form(page: ft.Page):
                 header=header_data,
                 line_items=line_items,
             )
+            if not new_id:
+                snack("❌ Failed to create order — check network", ft.Colors.RED_400)
+                return
             snack(f"✅ Order #{new_id} saved (₹{total_amount:,.2f})")
 
         state["cart"] = []
@@ -707,7 +713,11 @@ def view_order_form(page: ft.Page):
     return ft.Column(
         expand=True,
         spacing=0,
-        controls=[list_view, save_bar],
+        controls=[
+            connectivity_banner(),
+            list_view,
+            save_bar,
+        ],
     )
 
 # ============================================================

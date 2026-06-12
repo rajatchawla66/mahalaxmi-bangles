@@ -12,7 +12,8 @@ __all__ = [
     'validate_order',
     'calculate_line_total',
     '_is_valid_image',
-    '_safe_launch_url'
+    '_safe_launch_url',
+    'connectivity_banner'
 ]
 
 def _load_categories_from_db():
@@ -127,3 +128,20 @@ def _safe_launch_url(page, url: str):
             page.launch_url(url)
     except Exception:
         webbrowser.open(url)
+
+
+def connectivity_banner():
+    """Return a thin offline banner or a zero-height placeholder when online."""
+    if db.is_online():
+        return ft.Container(height=0)
+    return ft.Container(
+        height=28,
+        bgcolor=ft.Colors.ORANGE_800,
+        alignment=ft.alignment.center,
+        content=ft.Text(
+            "🔴 Offline — showing cached data",
+            size=11,
+            color=ft.Colors.WHITE,
+            text_align=ft.TextAlign.CENTER,
+        ),
+    )

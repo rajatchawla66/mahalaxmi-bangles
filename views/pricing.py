@@ -97,8 +97,13 @@ def view_add_item(page: ft.Page):
     def _on_availability_toggle(_e):
         item_no = (item_tf.value or "").strip()
         if item_no and editing_existing["flag"]:
-            db.set_item_availability(item_no, availability_switch.value)
-            snack(f"{'✅ Available' if availability_switch.value else '🚫 Unavailable'}: {item_no}")
+            new_val = availability_switch.value
+            if not db.set_item_availability(item_no, new_val):
+                availability_switch.value = not new_val
+                snack("❌ Failed to update availability — check network", ft.Colors.RED_400)
+                page.update()
+                return
+            snack(f"{'✅ Available' if new_val else '🚫 Unavailable'}: {item_no}")
             page.update()
 
     availability_switch.on_change = _on_availability_toggle
@@ -199,31 +204,35 @@ def view_add_item(page: ft.Page):
         if src and os.path.exists(src):
             snack("Uploading image...", ft.Colors.BLUE_400)
             uploaded_url = db.upload_image(src, item_no)
-            if uploaded_url:
-                final_image_url = uploaded_url
-            else:
-                ext = src.rsplit(".", 1)[-1].lower()
-                safe = item_no.replace("/", "_").replace("\\", "_")
-                final_image_url = os.path.join(db.IMAGES_FOLDER, f"{safe}.{ext}")
-                try:
-                    shutil.move(src, final_image_url)
-                except Exception:
-                    shutil.copy(src, final_image_url)
+            if not uploaded_url:
+                snack("❌ Image upload failed — check network", ft.Colors.RED_400)
+                return
+            final_image_url = uploaded_url
             picked_path["value"] = ""
         elif existing and existing.get("image_url"):
             final_image_url = existing["image_url"]
 
         if existing:
-            db.update_item_prices(item_no, cp_val, sp_val)
-            db.update_item_image(item_no, final_image_url)
-            db.update_item_category(item_no, selected_category, selected_sub_category)
-            db.update_item_properties(item_no, has_sizes_switch.value, has_color_switch.value)
+            if not db.update_item_prices(item_no, cp_val, sp_val):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
+            if not db.update_item_image(item_no, final_image_url):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
+            if not db.update_item_category(item_no, selected_category, selected_sub_category):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
+            if not db.update_item_properties(item_no, has_sizes_switch.value, has_color_switch.value):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
         else:
-            db.add_rate_item(item_no, final_image_url, cp_val, sp_val,
-                             category=selected_category,
-                             sub_category=selected_sub_category,
-                             has_sizes=has_sizes_switch.value,
-                             has_color=has_color_switch.value)
+            if not db.add_rate_item(item_no, final_image_url, cp_val, sp_val,
+                                    category=selected_category,
+                                    sub_category=selected_sub_category,
+                                    has_sizes=has_sizes_switch.value,
+                                    has_color=has_color_switch.value):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
 
         snack("✅ Item saved!")
         if "catalog_cache" in state:
@@ -354,7 +363,10 @@ def view_catalogue(page: ft.Page):
                         dlg_modal.open = False
                         page.update()
                     def confirm_delete(e):
-                        db.delete_item(item_number)
+                        ok = db.delete_item(item_number)
+                        if not ok:
+                            snack("❌ Failed to delete item — check network", ft.Colors.RED_400)
+                            return
                         if "catalog_cache" in state:
                             state["catalog_cache"] = [x for x in state["catalog_cache"] if x["item_number"] != item_number]
                         dlg_modal.open = False
@@ -386,7 +398,9 @@ def view_catalogue(page: ft.Page):
             def make_avail_handler(item_number, currently_available):
                 def _h(_):
                     new_val = not currently_available
-                    db.set_item_availability(item_number, new_val)
+                    if not db.set_item_availability(item_number, new_val):
+                        snack("❌ Failed to update availability — check network", ft.Colors.RED_400)
+                        return
                     if "catalog_cache" in state:
                         for x in state["catalog_cache"]:
                             if x["item_number"] == item_number:
@@ -424,12 +438,19 @@ def view_catalogue(page: ft.Page):
 
     return ft.Column(
         expand=True,
-        scroll=ft.ScrollMode.AUTO,
-        spacing=10,
+        spacing=0,
         controls=[
-            ft.Text("📦 Product Catalogue", size=16, weight="bold"),
-            catalogue_list,
-            ft.Container(height=24),
+            connectivity_banner(),
+            ft.Column(
+                expand=True,
+                scroll=ft.ScrollMode.AUTO,
+                spacing=10,
+                controls=[
+                    ft.Text("📦 Product Catalogue", size=16, weight="bold"),
+                    catalogue_list,
+                    ft.Container(height=24),
+                ],
+            ),
         ],
     )
 

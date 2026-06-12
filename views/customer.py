@@ -248,15 +248,22 @@ def view_customer_dashboard(page: ft.Page):
         pair = cat_tiles[i:i+2]
         rows.append(ft.Row(controls=pair, spacing=12))
 
-    return ft.ListView(
-        expand=True, padding=16, spacing=20,
+    return ft.Column(
+        expand=True,
+        spacing=0,
         controls=[
-            ft.Text(f"Namaste, {state['username']}!", size=18, weight=ft.FontWeight.W_500),
-            ft.Row([search_tf, ft.IconButton(ft.Icons.ARROW_FORWARD,
-                     on_click=lambda _: on_search_change(None))], spacing=10),
-            ft.Text("Browse Categories", size=20, weight="bold"),
-            *rows,
-            ft.Container(height=40),
+            connectivity_banner(),
+            ft.ListView(
+                expand=True, padding=16, spacing=20,
+                controls=[
+                    ft.Text(f"Namaste, {state['username']}!", size=18, weight=ft.FontWeight.W_500),
+                    ft.Row([search_tf, ft.IconButton(ft.Icons.ARROW_FORWARD,
+                             on_click=lambda _: on_search_change(None))], spacing=10),
+                    ft.Text("Browse Categories", size=20, weight="bold"),
+                    *rows,
+                    ft.Container(height=40),
+                ],
+            ),
         ],
     )
 

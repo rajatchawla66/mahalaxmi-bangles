@@ -493,6 +493,54 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-026: Connectivity Phase 1+2 — No offline detection, no user indication
+| Field | Detail |
+|-------|--------|
+| **Date** | June 12, 2026 |
+| **Symptom** | App has no awareness of network state. When offline, requests silently return `[]`/`False`/`""` with no user-facing indication. Users can perform actions that appear to succeed but silently fail. |
+| **Root Cause** | No connectivity detection mechanism existed. The 4 centralized wrappers (`_get`/`_post`/`_patch`/`_delete`) caught all exceptions silently. No counter tracked consecutive failures. No UI element indicated offline state. |
+| **Fix** | Added module-level `_consecutive_failures` counter + `_OFFLINE_THRESHOLD=3` in `db.py`. Added `_mark_success()`/`_mark_failure()` called from all 4 wrappers. Added `_is_transport_error()` to distinguish network issues (timeout, connect error, 5xx) from business-logic HTTP errors (4xx). Added `is_online()` and `get_connectivity_status()` public API. Added `connectivity_banner()` in `utils.py` — thin 28px orange banner when offline, zero-height when online. Banner added to 4 read-heavy views: customer dashboard, admin home, pricing catalogue, order form. |
+| **Files** | `db.py`, `utils.py`, `views/customer.py`, `views/home.py`, `views/pricing.py`, `views/orders.py` |
+| **Lesson** | Connectivity should be inferred passively from existing request failures, not via active ping. A simple failure counter in the centralized wrapper layer is sufficient. |
+
+---
+
+### BUG-027: update_order() Always Returns True
+| Field | Detail |
+|-------|--------|
+| **Date** | June 12, 2026 |
+| **Symptom** | Admin edits an order offline — UI shows "✅ Order updated" and navigates to home. DB was never updated. |
+| **Root Cause** | `db.update_order()` called `_patch()`, `_delete()`, and `_post()` but never checked any of their return values. Always unconditionally returned `True`. |
+| **Fix** | Added `if not` checks after each of the 3 internal writes. On any failure, returns `False` immediately. Caller in `orders.py:590-593` now checks return: `if not ok: snack("❌ Failed to update order — check network"); return`. |
+| **Files** | `db.py:557-579`, `views/orders.py:590-593` |
+| **Lesson** | Every function that returns `bool` must actually check its dependencies' return values. A "success" return with unchecked inner calls is a data-loss bug waiting to happen. |
+
+---
+
+### BUG-028: create_order() Partial Failure — items insert result ignored
+| Field | Detail |
+|-------|--------|
+| **Date** | June 12, 2026 |
+| **Symptom** | Customer places order offline — header created but items missing. UI shows "✅ Order #X placed successfully!" Customer sees empty order in My Orders. Data loss. |
+| **Root Cause** | `db.create_order()` checked header insert result but ignored items insert result. If header succeeded but items failed, it returned a truthy `order_id`. |
+| **Fix** | `db.create_order()` now checks `_post("order_items", ...)` return. On items insert failure, attempts cleanup via `_delete("orders", ...)` and returns `0`. Admin `save_order()` (orders.py:601-606) now checks `new_id` before showing success. Customer `place_order()` already checked — no change needed. |
+| **Files** | `db.py:540-543`, `views/orders.py:601-606` |
+| **Lesson** | Multi-step DB operations must verify every step. A fake success from a partial write is worse than a clean failure — the incomplete data persists and confuses users. |
+
+---
+
+### BUG-029: Add/Edit Item Save — fake success on network failure
+| Field | Detail |
+|-------|--------|
+| **Date** | June 12, 2026 |
+| **Symptom** | Admin saves a new catalogue item offline — UI shows "✅ Item saved!" and clears the form. No item was created in DB. Admin must re-enter all fields. |
+| **Root Cause** | `on_save_and_generate()` in `pricing.py:174-246` called 5 DB writes with zero return-value checks. Success snackbar was unconditional. Form cleared unconditionally. Image upload failure fell back to local filesystem path, which is broken for all other devices. |
+| **Fix** | (1) Image upload now checks return — if fails, shows red snackbar and returns (no local-path fallback). (2) All 4 edit writes (`update_item_prices`, `update_item_image`, `update_item_category`, `update_item_properties`) now return-checked — any failure stops the sequence and shows error. (3) `add_rate_item` return now checked for new items. (4) Form clears only on complete success. |
+| **Files** | `views/pricing.py:197-246` (`on_save_and_generate`) |
+| **Lesson** | A save function with N writes must check all N returns. Local-file fallbacks for cloud storage create invisible data corruption — better to fail loudly. |
+
+---
+
 ### BUG-024: Admin Order Form — Dropdown on_select never fires, missing return controls
 | Field | Detail |
 |-------|--------|
@@ -588,13 +636,24 @@ Exit: closes dialog → calls page.window.destroy()
 - Order Form Phase C — Image thumbnail (64×64, rounded) appears after item selection with placeholder icon fallback. Smart Add Item: mixed order opens category picker dialog that pre-selects category in the new row. Sticky bottom bar with outlined [+ Add Item] + filled [Save Order] always visible.
 - Labour Production Checklist V1 — per-size status toggle (pending→prepared→not_available→pending), image thumbnails, progress summary, JSONB column in order_items.
 - Labour Production Checklist V2 — Image-first cards (260px portrait, COVER fit, radius 12), direct routing (labour taps order → checklist, bypasses order_detail), BACK_MAP to home, pill-shaped status buttons (border_radius=20, padding 12,8).
-- BUG-025: Status buttons now visually update immediately on tap (e.control.bgcolor/content updated in handler).
 - Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
 - Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
 - White screen after force-stop/reopen
+- **Connectivity Phase 1+2** — Passive connectivity tracking (db.py), offline banner in 4 read-heavy screens (customer dashboard, admin home, pricing catalogue, order form)
+- **Connectivity Phase 3 — update_order() fix** — Now checks return values of all 3 internal writes, returns False on failure. Caller shows "Failed to update order — check network" and prevents navigation/state-clear.
+- **Connectivity Phase 3 — create_order() fix** — Items insert result now checked; on failure attempts orphan header cleanup and returns 0 (falsy). Both admin and customer callers check return and prevent fake success.
+- **Connectivity Phase 3A — Add/Edit Item save fix** — All 5 DB writes now return-checked. Image upload failure shows error instead of saving local path to DB. Form preserved on failure for retry.
+- **BUG-025** — Labour status buttons visually update immediately on tap
+- **BUG-027** — update_order() no longer always returns True
+- **Connectivity Phase 3B — Delete Item safety** — `db.delete_item()` return now checked. On failure: red snackbar shown, cache/UI unchanged, dialog stays open. On success: cache mutated, dialog closes, success snackbar shown.
+- **Connectivity Phase 3C — Availability toggle safety** — Form switch reverts on failure. Catalogue Hide/Show checks DB return before mutating cache.
+- **Connectivity Phase 3D — Costing save integrity** — `save_item_materials()` now checks `_delete()` and `_post()` return values instead of ignoring them. Fake success eliminated.
+- Offline banner shows correctly on connectivity loss
+- Item save with network failure does not clear form
+- Delete item with network failure keeps item visible
 
 ### ❌ Blocked
 - **Local Windows APK Build** — Flutter 3.29.2 + `objective_c` native-assets incompatibility
@@ -710,6 +769,12 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 12, 2026 | Connectivity Phase 3C+3D — Availability toggle safety (form revert + catalogue check) + Costing save integrity (save_item_materials checks _delete/_post returns). All remaining pricing write paths hardened. | `views/pricing.py`, `db.py` | Pending Android test |
+| June 12, 2026 | Connectivity Phase 3B — Delete Item safety. `db.delete_item()` return now checked in `confirm_delete`. Cache/UI mutation only after successful DB delete. Failure shows red snackbar, keeps item visible. | `views/pricing.py` | Pending Android test |
+| June 12, 2026 | Connectivity Phase 3A — Add/Edit Item save safety. Image upload failure no longer falls back to local path. All 5 DB writes in `on_save_and_generate()` now return-checked. Form preserved on failure. Fake success eliminated. | `views/pricing.py` | Pending Android test |
+| June 12, 2026 | Connectivity Phase 3 — create_order() partial failure fix. Items insert result now checked. Orphan header cleanup on failure. Admin caller (orders.py) now checks return. | `db.py`, `views/orders.py` | Pending Android test |
+| June 12, 2026 | Connectivity Phase 3 — update_order() fake-success fix. All 3 internal writes (`_patch`/`_delete`/`_post`) now return-checked. Caller shows failure snackbar and aborts navigation. | `db.py`, `views/orders.py` | Pending Android test |
+| June 12, 2026 | Connectivity Phase 1+2 — Passive connectivity tracking in db.py (`_consecutive_failures`, `is_online()`), offline banner in utils.py (`connectivity_banner()`), banner added to 4 read-heavy screens. | `db.py`, `utils.py`, `views/customer.py`, `views/home.py`, `views/pricing.py`, `views/orders.py` | Pending Android test |
 | June 11, 2026 | Labour Production Checklist — Image-first redesign + BUG-025 fix. Direct routing (labour taps order → checklist directly). BACK_MAP updated (checklist → home). Cards redesigned: 260px portrait image, pill-shaped status buttons (border_radius=20, padding 12,8), subtle text. BUG-025 fix: added 3 lines to `_make_toggle_handler` to update `e.control.bgcolor` and `e.control.content` after dict mutation. | `views/home.py`, `main.py`, `views/labour.py`, `PROJECT_MEMORY.md` | Complete — pushed `b51ee6d` |
 | June 11, 2026 | Admin Order Detail visual redesign — per-size production status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), 64px product image thumbnails, category group headers, per-item pricing, production summary at top. Labour text rendering unchanged. Replaced ft.Card with ft.Container for admin. | `views/orders.py` | Complete — pushed |
 | June 11, 2026 | Labour Production Checklist V1 — new views/labour.py with per-size status toggle, image thumbnails, progress summary. SQL migration file for JSONB column. Role-aware buttons in order detail. Admin read-only production status in order detail text. | `views/labour.py` (new), `views/orders.py`, `db.py`, `main.py`, `sql/migration_add_production_status.sql` (new) | Complete — pushed `b38fbfe` |

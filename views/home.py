@@ -318,7 +318,10 @@ def view_home(page: ft.Page):
     return ft.Stack(
         expand=True,
         controls=[
-            body,
+            ft.Column(expand=True, spacing=0, controls=[
+                connectivity_banner(),
+                body,
+            ]),
             ft.Container(content=fab, right=16, bottom=16),
         ],
     )

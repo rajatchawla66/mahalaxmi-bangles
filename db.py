@@ -26,6 +26,37 @@ try:
 except ImportError:
     HAS_HTTPX = False
 
+# ----- Connectivity tracking -----
+
+_consecutive_failures = 0
+_OFFLINE_THRESHOLD = 3
+
+
+def _mark_success():
+    global _consecutive_failures
+    _consecutive_failures = 0
+
+
+def _mark_failure():
+    global _consecutive_failures
+    _consecutive_failures += 1
+
+
+def _is_transport_error(e: Exception) -> bool:
+    """True if exception indicates a network/connectivity issue (not business-logic HTTP error)."""
+    if isinstance(e, httpx.HTTPStatusError):
+        return e.response.status_code >= 500
+    return isinstance(e, httpx.RequestError)
+
+
+def is_online() -> bool:
+    return _consecutive_failures < _OFFLINE_THRESHOLD
+
+
+def get_connectivity_status() -> dict:
+    return {"online": is_online(), "failures": _consecutive_failures}
+
+
 # ----- Configuration -----
 # Set these from environment variables or hardcode for testing
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://lgiepatlslklpxmeqkww.supabase.co")
@@ -57,8 +88,11 @@ def _get(table: str, params: str = "", raise_errors: bool = False) -> list:
     try:
         r = httpx.get(url, headers=_headers(), timeout=10)
         r.raise_for_status()
+        _mark_success()
         return r.json()
     except Exception as e:
+        if _is_transport_error(e):
+            _mark_failure()
         if raise_errors:
             raise e
         return []
@@ -70,8 +104,11 @@ def _post(table: str, data: dict | list) -> list:
     try:
         r = httpx.post(url, headers=_headers(), json=data, timeout=10)
         r.raise_for_status()
+        _mark_success()
         return r.json()
-    except Exception:
+    except Exception as e:
+        if _is_transport_error(e):
+            _mark_failure()
         return []
 
 
@@ -81,8 +118,11 @@ def _patch(table: str, params: str, data: dict) -> bool:
     try:
         r = httpx.patch(url, headers=_headers(), json=data, timeout=10)
         r.raise_for_status()
+        _mark_success()
         return True
-    except Exception:
+    except Exception as e:
+        if _is_transport_error(e):
+            _mark_failure()
         return False
 
 
@@ -92,8 +132,11 @@ def _delete(table: str, params: str) -> bool:
     try:
         r = httpx.delete(url, headers=_headers(), timeout=10)
         r.raise_for_status()
+        _mark_success()
         return True
-    except Exception:
+    except Exception as e:
+        if _is_transport_error(e):
+            _mark_failure()
         return False
 
 
@@ -495,7 +538,10 @@ def create_order(header: dict, line_items: list) -> int:
             "unit_price": li.get("unit_price", 0),
         })
     if items_data:
-        _post("order_items", items_data)
+        if not _post("order_items", items_data):
+            # Cleanup: remove orphan header if items insert fails
+            _delete("orders", f"order_id=eq.{new_order_id}")
+            return 0
 
     return new_order_id
 
@@ -511,8 +557,10 @@ def update_order(order_id: int, header: dict, line_items: list) -> bool:
         "additional_info": header.get("additional_info"),
         "total_amount": header.get("total_amount", 0),
     }
-    _patch("orders", f"order_id=eq.{order_id}", order_data)
-    _delete("order_items", f"order_id=eq.{order_id}")
+    if not _patch("orders", f"order_id=eq.{order_id}", order_data):
+        return False
+    if not _delete("order_items", f"order_id=eq.{order_id}"):
+        return False
     items_data = []
     for li in line_items:
         items_data.append({
@@ -531,8 +579,8 @@ def update_order(order_id: int, header: dict, line_items: list) -> bool:
             "box_type": li.get("box_type"),
             "notes": li.get("notes"),
         })
-    if items_data:
-        _post("order_items", items_data)
+    if items_data and not _post("order_items", items_data):
+        return False
     return True
 
 
@@ -753,11 +801,13 @@ def get_item_materials(item_number: str) -> list:
 
 def save_item_materials(item_number: str, materials: list) -> bool:
     try:
-        _delete("item_materials", f"item_number=eq.{quote(item_number)}")
+        if not _delete("item_materials", f"item_number=eq.{quote(item_number)}"):
+            return False
         if materials:
             for m in materials:
                 m["item_number"] = item_number
-            _post("item_materials", materials)
+            if not _post("item_materials", materials):
+                return False
         return True
     except Exception as e:
         print(f"Error saving materials: {e}")

@@ -225,6 +225,7 @@ state = {
     "customer_cart": [],
     "customer_mobile": None,
     "customer_full_catalogue": None,
+    "customer_category_cache": {},
     "customer_categories": None,
     "customer_id": None,
     "customer_shop_name": None,
@@ -650,6 +651,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Labour Production Checklist V2 — Image-first cards (260px portrait, COVER fit, radius 12), direct routing (labour taps order → checklist, bypasses order_detail), BACK_MAP to home, pill-shaped status buttons (border_radius=20, padding 12,8).
 - Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
 - Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
+- **Customer Dashboard Performance Refactor (Phase 1)** — Category-first lazy loading: dashboard no longer preloads full catalogue. Categories load instantly from `categories` table (lightweight query). Items fetched per-category via `db.get_customer_items_by_category()` when category is tapped. Results cached in `state["customer_category_cache"]` for instant repeat opens. Search uses `db.search_customer_items()` on demand. Add Again uses `db.get_item_by_number()` (single-item fetch). Zero items fetched at startup.
 - **Home Order List mobile touch fix (BUG-030)** — `ft.ListTile` replaced with `ft.Container` split layout; clickable body with ink ripple; trailing popup menu/chevron outside click scope.
 - **Image optimization** — Uploaded images resized to 1080×1350 HD JPEG (Q93) with `resize_product_image()`: EXIF transpose, 4:5 center-crop, LANCZOS, sharpen filter.
 
@@ -669,6 +671,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Item save with network failure does not clear form
 - Delete item with network failure keeps item visible
 - **Home order list (BUG-030)** — ListTile → Container touch reliability fix; trailing popup/chevron does not trigger navigation
+- **Customer Performance Refactor** — Category-first lazy loading; no full catalogue preload; search/add-again use on-demand DB fetch
 
 ### ❌ Blocked
 - **Local Windows APK Build** — Flutter 3.29.2 + `objective_c` native-assets incompatibility
@@ -784,6 +787,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 12, 2026 | Customer Dashboard Performance Refactor — Category-first lazy loading. Removed full catalogue preload from dashboard (was calling `get_customer_catalogue()`). Added `get_customer_items_by_category()` for per-category DB filter. Added `state["customer_category_cache"]` dict for per-category in-memory cache. Added `search_customer_items()` for on-demand search. Refactored Add Again to use `get_item_by_number()` (single-item fetch). Updated refresh handler to clear category cache instead of full reload. Dashboard now loads ONLY categories at startup — zero items fetched until category tapped. | `views/customer.py`, `db.py`, `main.py` | Pending Android test |
 | June 12, 2026 | **BUG-030** — Home order list mobile touch fix. Replaced `ft.ListTile(on_click=...)` with `ft.Container` split layout: clickable body with `ink=True` + trailing outside click scope. Popup menu/chevron no longer triggers order navigation. | `views/home.py` | Pending Android test |
 | June 12, 2026 | Image optimization — Added `resize_product_image()` to utils.py: EXIF rotation fix, center-crop 4:5, LANCZOS resize to 1080×1350, SHARPEN filter, JPEG Q93. Called from `views/pricing.py:on_pick_result` before Supabase upload. Local filesystem fallback removed. | `utils.py`, `views/pricing.py` | Complete — pushed CI |
 | June 12, 2026 | Connectivity Phase 3C+3D — Availability toggle safety (form revert + catalogue check) + Costing save integrity (save_item_materials checks _delete/_post returns). All remaining pricing write paths hardened. | `views/pricing.py`, `db.py` | Pending Android test |

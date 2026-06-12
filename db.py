@@ -436,8 +436,23 @@ def get_customer_catalogue() -> list:
     return rows
 
 
+def get_customer_items_by_category(category: str) -> list:
+    """Fetch customer-visible items for one category (lazy load).
+    Only items where is_available=true and selling_price > 0.
+    No image_url filter — items without images are still visible.
+    """
+    safe_cat = category.strip()
+    params = (f"category=eq.{quote(safe_cat)}"
+              f"&is_available=eq.true&selling_price=gt.0"
+              f"&order=item_number.asc")
+    rows = _get("rate_list", params)
+    for r in rows:
+        r["image_url"] = r.get("image_url", "")
+    return rows
+
+
 def get_customer_catalogue_by_category(category: str, sub_category: str = None) -> list:
-    """Fetch items filtered by category and optional sub-category."""
+    """Legacy: kept for backward compatibility. Prefer get_customer_items_by_category()."""
     params = f"category=eq.{quote(category)}&is_available=eq.true&selling_price=gt.0&image_url=not.is.null&order=item_number.asc"
     if sub_category:
         params += f"&sub_category=eq.{quote(sub_category)}"
@@ -446,6 +461,26 @@ def get_customer_catalogue_by_category(category: str, sub_category: str = None) 
     for r in rows:
         r["image_url"] = r.get("image_url", "")
     return rows
+
+
+def search_customer_items(query: str) -> list:
+    """Search customer-visible items by item_number, category, or sub_category.
+    Fetches all matching items from DB and filters client-side for multi-column search.
+    """
+    params = "is_available=eq.true&selling_price=gt.0&order=item_number.asc"
+    rows = _get("rate_list", params)
+    q = query.lower().strip()
+    if not q:
+        for r in rows:
+            r["image_url"] = r.get("image_url", "")
+        return rows
+    filtered = [r for r in rows if
+        q in (r.get("item_number") or "").lower() or
+        q in (r.get("category") or "").lower() or
+        q in (r.get("sub_category") or "").lower()]
+    for r in filtered:
+        r["image_url"] = r.get("image_url", "")
+    return filtered
 
 
 def get_all_items(raise_errors: bool = False) -> list:

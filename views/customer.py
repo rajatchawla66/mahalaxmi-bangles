@@ -64,6 +64,7 @@ def view_customer_pin_login(page: ft.Page):
         state["customer_cart"] = []
         # Clear stale catalogue so dashboard fetches fresh
         state["customer_full_catalogue"] = None
+        state["customer_category_cache"] = {}
         state["customer_categories"] = None
         state["customer_selected_category"] = None
         state["customer_selected_subcategory"] = None
@@ -101,25 +102,48 @@ def view_customer_pin_login(page: ft.Page):
     )
 
 # ============================================================
+# CATEGORY ITEMS CACHE HELPER
+# ============================================================
+
+def _get_category_items(page: ft.Page, category: str) -> list:
+    """Get items for a category from per-category cache or DB.
+    Cache keyed by category name in state['customer_category_cache'].
+    On DB failure, falls back to offline catalog cache.
+    """
+    state = page.state
+    cat_cache = state.setdefault("customer_category_cache", {})
+    if category in cat_cache:
+        return cat_cache[category]
+    try:
+        items = db.get_customer_items_by_category(category)
+        cat_cache[category] = items
+        return items
+    except Exception:
+        if cache.is_cache_available():
+            raw = cache.get_cached_catalog()
+            filtered = [it for it in raw if
+                it.get("is_available", 1) and
+                (it.get("selling_price") or 0) > 0 and
+                (it.get("category") or "").strip().lower() == category.strip().lower()]
+            cat_cache[category] = filtered
+            return filtered
+        return []
+
+
+# ============================================================
 # CATEGORY GRID (NEW DASHBOARD)
 # ============================================================
 
 def view_customer_dashboard(page: ft.Page):
-    """Main customer entry grid showing categories — portrait tiles 2-per-row."""
+    """Main customer entry grid showing categories — portrait tiles 2-per-row.
+    No full catalogue preload. Categories load only; items load on tap.
+    """
     state = page.state
 
-    # --- Load catalogue: Supabase first, cache fallback ---
-    if state.get("customer_full_catalogue") is None:
-        try:
-            state["customer_full_catalogue"] = db.get_customer_catalogue()
-        except Exception:
-            if cache.is_cache_available():
-                raw = cache.get_cached_catalog()
-                state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
-            else:
-                state["customer_full_catalogue"] = []
+    # Ensure category cache exists (cleared on logout/refresh)
+    state.setdefault("customer_category_cache", {})
 
-    # --- Load categories: independently guarded, Supabase first, cache fallback ---
+    # --- Load categories: Supabase first, cache fallback ---
     if state.get("customer_categories") is None:
         try:
             state["customer_categories"] = db.get_categories(active_only=True)
@@ -129,21 +153,7 @@ def view_customer_dashboard(page: ft.Page):
             else:
                 state["customer_categories"] = []
 
-    catalog = state["customer_full_catalogue"] or []
     categories = state["customer_categories"] or []
-
-    # Calculate item counts per category in-memory (with normalized names)
-    counts = {}
-    for it in catalog:
-        cat_name = (it.get("category") or "Uncategorized").strip()
-        counts[cat_name] = counts.get(cat_name, 0) + 1
-
-    # Build first-item-image lookup per category (fallback for missing cover)
-    cat_first_image = {}
-    for it in catalog:
-        cname = (it.get("category") or "").strip()
-        if cname and it.get("image_url") and cname not in cat_first_image:
-            cat_first_image[cname] = it["image_url"]
 
     # --- Search Handler ---
     def on_search_change(_):
@@ -170,18 +180,12 @@ def view_customer_dashboard(page: ft.Page):
 
     # --- Build Category Tiles (Portrait 3:4, 2 per row) ---
     sw = page.width or 360
-    tile_w = (sw - 32 - 12) // 2  # 16px padding each side, 12px gap
-    tile_h = int(tile_w * 4 / 3)  # 3:4 portrait ratio
+    tile_w = (sw - 32 - 12) // 2
+    tile_h = int(tile_w * 4 / 3)
 
     cat_tiles = []
     for cat in categories:
         cname = cat["name"].strip()
-        item_count = counts.get(cname, 0)
-        if item_count == 0:
-            continue
-
-        # Cover image: category cover → first-item image → monogram
-        cover_url = cat.get("cover_image_url") or cat_first_image.get(cname)
 
         def on_cat_click(e, c=cat):
             state["customer_selected_category"] = c["name"].strip()
@@ -194,6 +198,7 @@ def view_customer_dashboard(page: ft.Page):
                 state["customer_subcategories"] = []
                 page.go("customer_items")
 
+        cover_url = cat.get("cover_image_url")
         if cover_url:
             bg = ft.Image(src=cover_url, fit=ft.ImageFit.COVER, expand=True)
         else:
@@ -229,14 +234,6 @@ def view_customer_dashboard(page: ft.Page):
                     content=ft.Column([
                         ft.Text(cname, size=14, weight="bold", color=ft.Colors.WHITE),
                     ], spacing=0, tight=True),
-                ),
-                ft.Container(
-                    padding=ft.Padding(7, 2, 7, 2),
-                    bgcolor=ft.Colors.with_opacity(0.85, ft.Colors.WHITE),
-                    border_radius=10,
-                    top=8, right=8,
-                    content=ft.Text(f"{item_count}", size=11,
-                                    weight=ft.FontWeight.W_600, color=ft.Colors.GREY_800),
                 ),
             ]),
         )
@@ -275,22 +272,23 @@ def view_customer_subcategories(page: ft.Page):
     state = page.state
     category = state.get("customer_selected_category")
     subs = state.get("customer_subcategories", [])
-    catalog = state.get("customer_full_catalogue", [])
 
     if not category:
         page.go("customer_dashboard")
         return ft.Container()
 
-    # Calculate item counts per subcategory
+    # Lazy-load items for this category (cached for repeat opens)
+    catalog = _get_category_items(page, category)
+
+    # Calculate item counts per subcategory + cover images
     sub_counts = {}
-    sub_covers = {} # Use first item image as cover
+    sub_covers = {}
     for it in catalog:
-        if (it.get("category") or "").strip() == category.strip():
-            sub_name = it.get("sub_category")
-            if sub_name:
-                sub_counts[sub_name] = sub_counts.get(sub_name, 0) + 1
-                if sub_name not in sub_covers and it.get("image_url"):
-                    sub_covers[sub_name] = it["image_url"]
+        sub_name = it.get("sub_category")
+        if sub_name:
+            sub_counts[sub_name] = sub_counts.get(sub_name, 0) + 1
+            if sub_name not in sub_covers and it.get("image_url"):
+                sub_covers[sub_name] = it["image_url"]
 
     # --- Build Cards ---
     sub_cards = []
@@ -480,7 +478,6 @@ def _build_item_card(item, on_view_details):
 
 def view_customer_items(page: ft.Page):
     state = page.state
-    catalog = state.get("customer_full_catalogue", [])
     category = state.get("customer_selected_category")
     subcategory = state.get("customer_selected_subcategory")
 
@@ -488,11 +485,13 @@ def view_customer_items(page: ft.Page):
         page.go("customer_dashboard")
         return ft.Container()
 
+    # Lazy-load items for this category (cached for repeat opens)
+    catalog = _get_category_items(page, category)
+
     items = []
     for it in catalog:
-        if (it.get("category") or "").strip() == category.strip():
-            if not subcategory or (it.get("sub_category") or "").strip() == subcategory.strip():
-                items.append(it)
+        if not subcategory or (it.get("sub_category") or "").strip() == subcategory.strip():
+            items.append(it)
 
     item_cards = []
     for it in items:
@@ -520,7 +519,6 @@ def view_customer_items(page: ft.Page):
 
 def view_customer_search(page: ft.Page):
     state = page.state
-    catalog = state.get("customer_full_catalogue", [])
 
     results_header = ft.Text(size=15, weight="bold")
     results_list = ft.ListView(expand=True, padding=ft.Padding(left=12, top=0, right=12, bottom=16), spacing=12)
@@ -531,10 +529,21 @@ def view_customer_search(page: ft.Page):
             page.go("customer_dashboard")
             return
 
-        filtered = [i for i in catalog if
-            query in (i.get("item_number") or "").lower() or
-            query in (i.get("category") or "").lower() or
-            query in (i.get("sub_category") or "").lower()]
+        # Fetch matching items from DB on demand (not from preloaded catalogue)
+        try:
+            filtered = db.search_customer_items(query)
+        except Exception:
+            # Offline fallback: use cached catalog
+            if cache.is_cache_available():
+                raw = cache.get_cached_catalog()
+                filtered = [i for i in raw if
+                    i.get("is_available", 1) and
+                    (i.get("selling_price") or 0) > 0 and (
+                        query in (i.get("item_number") or "").lower() or
+                        query in (i.get("category") or "").lower() or
+                        query in (i.get("sub_category") or "").lower())]
+            else:
+                filtered = []
 
         cards = []
         for it in filtered:
@@ -1160,24 +1169,9 @@ def view_customer_my_orders(page: ft.Page):
                     up = it.get("unit_price", 0)
 
                     def on_add_again(e, order_item=it):
-                        catalogue = state.get("customer_full_catalogue")
-                        if catalogue is None:
-                            try:
-                                state["customer_full_catalogue"] = db.get_customer_catalogue()
-                                catalogue = state["customer_full_catalogue"]
-                            except Exception:
-                                if cache.is_cache_available():
-                                    raw = cache.get_cached_catalog()
-                                    state["customer_full_catalogue"] = [it for it in raw if it.get("is_available", 1) and (it.get("selling_price") or 0) > 0]
-                                    catalogue = state["customer_full_catalogue"]
-                                else:
-                                    catalogue = []
-                        match = None
-                        for ci in catalogue:
-                            if ci.get("item_number") == order_item.get("item_number"):
-                                match = ci
-                                break
-                        if not match or not match.get("is_available", True):
+                        item_no = order_item.get("item_number")
+                        match = db.get_item_by_number(item_no)
+                        if not match or not match.get("is_available", True) or not (match.get("selling_price") or 0) > 0:
                             page.snack("Item no longer available", ft.Colors.RED_400)
                             return
                         has_sizes = bool(match.get("has_sizes", 0))

@@ -459,6 +459,7 @@ async def main(page: ft.Page):
         "customer_cart": [],
         "customer_mobile": None,
         "customer_full_catalogue": None,
+        "customer_category_cache": {},
         "customer_categories": None,
         "customer_id": None,
         "customer_shop_name": None,
@@ -483,6 +484,7 @@ async def main(page: ft.Page):
             state["customer_id"] = session_data.get("customer_id")
             state["customer_shop_name"] = session_data.get("customer_shop_name")
             state["customer_full_catalogue"] = None
+            state["customer_category_cache"] = {}
             state["customer_categories"] = None
             state["current_page"] = "customer_dashboard"
 
@@ -657,6 +659,7 @@ async def main(page: ft.Page):
         state["customer_mobile"] = None
         state["customer_cart"] = []
         state["customer_full_catalogue"] = None
+        state["customer_category_cache"] = {}
         state["customer_categories"] = None
         state["customer_selected_category"] = None
         state["customer_selected_subcategory"] = None
@@ -895,16 +898,13 @@ async def main(page: ft.Page):
         # Customer catalogue refresh handler
         def _customer_refresh(_):
             try:
-                fresh = db.get_customer_catalogue()
-                state["customer_full_catalogue"] = fresh
+                # Clear per-category cache so next tap fetches fresh from DB
+                state["customer_category_cache"] = {}
+                fresh_cats = db.get_categories(active_only=True)
+                state["customer_categories"] = fresh_cats
             except Exception as ex:
                 snack(f"❌ Refresh failed: {ex}", ft.Colors.RED_400)
                 return
-            try:
-                fresh_cats = db.get_categories(active_only=True)
-                state["customer_categories"] = fresh_cats
-            except Exception:
-                pass
             snack("✅ Catalogue refreshed")
             render()
 

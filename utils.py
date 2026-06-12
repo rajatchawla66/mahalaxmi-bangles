@@ -5,6 +5,8 @@ import flet as ft
 from pathlib import Path
 import db
 
+from PIL import Image, ImageOps, ImageFilter
+
 __all__ = [
     '_load_categories_from_db',
     '_safe_int',
@@ -13,8 +15,13 @@ __all__ = [
     'calculate_line_total',
     '_is_valid_image',
     '_safe_launch_url',
-    'connectivity_banner'
+    'connectivity_banner',
+    'resize_product_image',
 ]
+
+
+PRODUCT_IMAGE_SIZE = (1080, 1350)
+PRODUCT_JPEG_QUALITY = 93
 
 def _load_categories_from_db():
     cats = db.get_categories(active_only=True)
@@ -128,6 +135,37 @@ def _safe_launch_url(page, url: str):
             page.launch_url(url)
     except Exception:
         webbrowser.open(url)
+
+
+def resize_product_image(input_path: str, output_path: str = None) -> str:
+    """Resize, center-crop to 4:5, sharpen, and save as HD JPEG.
+
+    Returns the output path.
+    """
+    if output_path is None:
+        output_path = input_path
+    img = Image.open(input_path)
+    img = ImageOps.exif_transpose(img)
+
+    # Center-crop to 4:5 portrait
+    target_w, target_h = PRODUCT_IMAGE_SIZE
+    target_ratio = target_w / target_h
+    w, h = img.size
+    img_ratio = w / h
+
+    if img_ratio > target_ratio:
+        new_w = int(h * target_ratio)
+        offset = (w - new_w) // 2
+        img = img.crop((offset, 0, offset + new_w, h))
+    elif img_ratio < target_ratio:
+        new_h = int(w / target_ratio)
+        offset = (h - new_h) // 2
+        img = img.crop((0, offset, w, offset + new_h))
+
+    img = img.resize(PRODUCT_IMAGE_SIZE, Image.LANCZOS)
+    img = img.filter(ImageFilter.SHARPEN)
+    img.save(output_path, "JPEG", quality=PRODUCT_JPEG_QUALITY, optimize=True)
+    return output_path
 
 
 def connectivity_banner():

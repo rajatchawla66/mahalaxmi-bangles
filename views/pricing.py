@@ -33,6 +33,11 @@ def view_add_item(page: ft.Page):
             snack(f"Image copy failed: {ex}", ft.Colors.RED_500)
             return
         picked_path["value"] = tmp_path
+        try:
+            resize_product_image(tmp_path, tmp_path)
+        except Exception as ex:
+            snack(f"Image processing failed: {ex}", ft.Colors.RED_500)
+            return
         preview_img.content = ft.Image(
             src=tmp_path, width=120, height=120,
             fit=ft.ImageFit.COVER, border_radius=8,

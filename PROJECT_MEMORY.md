@@ -493,6 +493,18 @@ Exit: closes dialog → calls page.window.destroy()
 
 ---
 
+### BUG-030: Home Order List — ft.ListTile.on_click unreliable on Android in scrollable parent
+| Field | Detail |
+|-------|--------|
+| **Date** | June 12, 2026 |
+| **Symptom** | Tapping an order card on the home screen (admin or labour) often does nothing on Android. Requires multiple taps or very precise tap. Chevron/popup menu are the only reliably tappable areas. |
+| **Root Cause** | `ft.ListTile` inside `ft.Column(scroll=ft.ScrollMode.AUTO)` — Flet 0.28.3 has unreliable gesture detection for `ListTile.on_click` when the parent is a scrollable Column. The ListTile's internal gesture detector conflicts with the scroll detector. The popup menu button and chevron icon work reliably because they are separate controls with their own gesture areas. |
+| **Fix** | Replaced `ft.ListTile(on_click=on_order_tap(order_id), leading=..., title=..., subtitle=..., trailing=...)` with `ft.Container` structure: outer white Container with `border_radius=10` and `clip_behavior=ANTI_ALIAS` (no `on_click`); inner Row with two children: (1) clickable body Container with `expand=True, on_click=on_order_tap(order_id), ink=True` containing the 6px color strip + title/subtitle Column, and (2) trailing Container (popup menu or chevron) with no `on_click`. This ensures the trailing (3-dot menu / chevron) does NOT trigger order navigation. |
+| **Files** | `views/home.py:258-294` (replaced ListTile block) |
+| **Lesson** | `ft.ListTile.on_click` is unreliable inside scrollable parents in Flet 0.28.3 on Android. Use `ft.Container(on_click=..., ink=True)` for reliable tap detection. Split clickable body from interactive trailing elements to prevent accidental navigation. |
+
+---
+
 ### BUG-026: Connectivity Phase 1+2 — No offline detection, no user indication
 | Field | Detail |
 |-------|--------|
@@ -638,6 +650,8 @@ Exit: closes dialog → calls page.window.destroy()
 - Labour Production Checklist V2 — Image-first cards (260px portrait, COVER fit, radius 12), direct routing (labour taps order → checklist, bypasses order_detail), BACK_MAP to home, pill-shaped status buttons (border_radius=20, padding 12,8).
 - Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
 - Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
+- **Home Order List mobile touch fix (BUG-030)** — `ft.ListTile` replaced with `ft.Container` split layout; clickable body with ink ripple; trailing popup menu/chevron outside click scope.
+- **Image optimization** — Uploaded images resized to 1080×1350 HD JPEG (Q93) with `resize_product_image()`: EXIF transpose, 4:5 center-crop, LANCZOS, sharpen filter.
 
 ### 🔄 Pending Verification (needs real Android testing)
 - Logout button across all roles
@@ -654,6 +668,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Offline banner shows correctly on connectivity loss
 - Item save with network failure does not clear form
 - Delete item with network failure keeps item visible
+- **Home order list (BUG-030)** — ListTile → Container touch reliability fix; trailing popup/chevron does not trigger navigation
 
 ### ❌ Blocked
 - **Local Windows APK Build** — Flutter 3.29.2 + `objective_c` native-assets incompatibility
@@ -769,6 +784,8 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 12, 2026 | **BUG-030** — Home order list mobile touch fix. Replaced `ft.ListTile(on_click=...)` with `ft.Container` split layout: clickable body with `ink=True` + trailing outside click scope. Popup menu/chevron no longer triggers order navigation. | `views/home.py` | Pending Android test |
+| June 12, 2026 | Image optimization — Added `resize_product_image()` to utils.py: EXIF rotation fix, center-crop 4:5, LANCZOS resize to 1080×1350, SHARPEN filter, JPEG Q93. Called from `views/pricing.py:on_pick_result` before Supabase upload. Local filesystem fallback removed. | `utils.py`, `views/pricing.py` | Complete — pushed CI |
 | June 12, 2026 | Connectivity Phase 3C+3D — Availability toggle safety (form revert + catalogue check) + Costing save integrity (save_item_materials checks _delete/_post returns). All remaining pricing write paths hardened. | `views/pricing.py`, `db.py` | Pending Android test |
 | June 12, 2026 | Connectivity Phase 3B — Delete Item safety. `db.delete_item()` return now checked in `confirm_delete`. Cache/UI mutation only after successful DB delete. Failure shows red snackbar, keeps item visible. | `views/pricing.py` | Pending Android test |
 | June 12, 2026 | Connectivity Phase 3A — Add/Edit Item save safety. Image upload failure no longer falls back to local path. All 5 DB writes in `on_save_and_generate()` now return-checked. Form preserved on failure. Fake success eliminated. | `views/pricing.py` | Pending Android test |

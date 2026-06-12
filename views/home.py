@@ -256,13 +256,40 @@ def view_home(page: ft.Page):
                 trailing = None
 
             cards.append(
-                ft.ListTile(
-                    on_click=on_order_tap(order_id),
+                ft.Container(
                     bgcolor=ft.Colors.WHITE,
-                    leading=ft.Container(width=6, height=50, bgcolor=cat_color, border_radius=3),
-                    title=title_row,
-                    subtitle=ft.Column(spacing=4, controls=subtitle_controls),
-                    trailing=trailing,
+                    border_radius=10,
+                    clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                    content=ft.Row(
+                        spacing=0,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            ft.Container(
+                                expand=True,
+                                on_click=on_order_tap(order_id),
+                                ink=True,
+                                padding=ft.Padding(left=0, right=0, top=12, bottom=12),
+                                content=ft.Row(
+                                    spacing=12,
+                                    controls=[
+                                        ft.Container(width=6, bgcolor=cat_color),
+                                        ft.Column(
+                                            expand=True,
+                                            spacing=4,
+                                            controls=[
+                                                title_row,
+                                                ft.Column(spacing=4, controls=subtitle_controls),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            ft.Container(
+                                content=trailing,
+                                padding=ft.Padding(left=0, top=0, right=4, bottom=0),
+                            ),
+                        ],
+                    ),
                 )
             )
         return cards

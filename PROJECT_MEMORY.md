@@ -672,6 +672,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Delete item with network failure keeps item visible
 - **Home order list (BUG-030)** — ListTile → Container touch reliability fix; trailing popup/chevron does not trigger navigation
 - **Customer Performance Refactor** — Category-first lazy loading; no full catalogue preload; search/add-again use on-demand DB fetch
+- **Customer Offline Fallback** — `_offline_empty_state()` helper with Reload button; dashboard offline state; category items offline state; subcategories offline state
 
 ### ❌ Blocked
 - **Local Windows APK Build** — Flutter 3.29.2 + `objective_c` native-assets incompatibility
@@ -787,6 +788,7 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 12, 2026 | Offline fallback fix for customer lazy loading: Added `_offline_empty_state()` helper (icon + message + Reload button). `_get_category_items()` now returns `(items, was_offline)` tuple. Dashboard shows offline state when categories fail to load. Items/subcategories views show offline state when category items fail + cached catalog empty. Reload button retries DB fetch (clears cache key, navigates to self). Categories tap into genuinely empty categories now shows "No items found" (not offline state). | `views/customer.py` | Pending Android test |
 | June 12, 2026 | Customer Dashboard Performance Refactor — Category-first lazy loading. Removed full catalogue preload from dashboard (was calling `get_customer_catalogue()`). Added `get_customer_items_by_category()` for per-category DB filter. Added `state["customer_category_cache"]` dict for per-category in-memory cache. Added `search_customer_items()` for on-demand search. Refactored Add Again to use `get_item_by_number()` (single-item fetch). Updated refresh handler to clear category cache instead of full reload. Dashboard now loads ONLY categories at startup — zero items fetched until category tapped. | `views/customer.py`, `db.py`, `main.py` | Pending Android test |
 | June 12, 2026 | **BUG-030** — Home order list mobile touch fix. Replaced `ft.ListTile(on_click=...)` with `ft.Container` split layout: clickable body with `ink=True` + trailing outside click scope. Popup menu/chevron no longer triggers order navigation. | `views/home.py` | Pending Android test |
 | June 12, 2026 | Image optimization — Added `resize_product_image()` to utils.py: EXIF rotation fix, center-crop 4:5, LANCZOS resize to 1080×1350, SHARPEN filter, JPEG Q93. Called from `views/pricing.py:on_pick_result` before Supabase upload. Local filesystem fallback removed. | `utils.py`, `views/pricing.py` | Complete — pushed CI |

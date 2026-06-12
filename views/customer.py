@@ -102,22 +102,44 @@ def view_customer_pin_login(page: ft.Page):
     )
 
 # ============================================================
+# OFFLINE EMPTY STATE HELPER
+# ============================================================
+
+def _offline_empty_state(message: str, on_reload):
+    """Return a centered offline empty state with message and reload button."""
+    return ft.Container(
+        expand=True,
+        alignment=ft.alignment.center,
+        padding=40,
+        content=ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=16,
+            controls=[
+                ft.Icon(ft.Icons.WIFI_OFF, size=64, color=ft.Colors.GREY_400),
+                ft.Text(message, size=15, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
+                ft.FilledButton("Reload", icon=ft.Icons.REFRESH, on_click=on_reload),
+            ],
+        ),
+    )
+
+
+# ============================================================
 # CATEGORY ITEMS CACHE HELPER
 # ============================================================
 
-def _get_category_items(page: ft.Page, category: str) -> list:
+def _get_category_items(page: ft.Page, category: str) -> tuple[list, bool]:
     """Get items for a category from per-category cache or DB.
-    Cache keyed by category name in state['customer_category_cache'].
-    On DB failure, falls back to offline catalog cache.
+    Returns (items, was_offline). was_offline=True when DB failed,
+    result came from offline cache (possibly empty).
     """
     state = page.state
     cat_cache = state.setdefault("customer_category_cache", {})
     if category in cat_cache:
-        return cat_cache[category]
+        return cat_cache[category], False
     try:
         items = db.get_customer_items_by_category(category)
         cat_cache[category] = items
-        return items
+        return items, False
     except Exception:
         if cache.is_cache_available():
             raw = cache.get_cached_catalog()
@@ -126,8 +148,8 @@ def _get_category_items(page: ft.Page, category: str) -> list:
                 (it.get("selling_price") or 0) > 0 and
                 (it.get("category") or "").strip().lower() == category.strip().lower()]
             cat_cache[category] = filtered
-            return filtered
-        return []
+            return filtered, True
+        return [], True
 
 
 # ============================================================
@@ -148,12 +170,30 @@ def view_customer_dashboard(page: ft.Page):
         try:
             state["customer_categories"] = db.get_categories(active_only=True)
         except Exception:
+            pass
+
+    if state.get("customer_categories") is None:
+        # DB failed — try offline cache
+        try:
             if cache.is_cache_available():
                 state["customer_categories"] = cache.get_cached_categories()
-            else:
-                state["customer_categories"] = []
+        except Exception:
+            pass
 
     categories = state["customer_categories"] or []
+
+    # --- Early exit if no categories and offline ---
+    if not categories:
+        def _reload_cats(_):
+            state["customer_categories"] = None
+            page.go("customer_dashboard")
+        return ft.Column(
+            expand=True, spacing=0,
+            controls=[
+                connectivity_banner(),
+                _offline_empty_state("Internet not connected.\nUnable to fetch catalogue.", _reload_cats),
+            ],
+        )
 
     # --- Search Handler ---
     def on_search_change(_):
@@ -278,7 +318,19 @@ def view_customer_subcategories(page: ft.Page):
         return ft.Container()
 
     # Lazy-load items for this category (cached for repeat opens)
-    catalog = _get_category_items(page, category)
+    catalog, was_offline = _get_category_items(page, category)
+
+    if not catalog and was_offline:
+        def _reload_category(_):
+            state["customer_category_cache"].pop(category, None)
+            page.go("customer_subcategories")
+        return ft.Column(
+            expand=True, spacing=0,
+            controls=[
+                connectivity_banner(),
+                _offline_empty_state("Internet not connected.\nUnable to fetch items.", _reload_category),
+            ],
+        )
 
     # Calculate item counts per subcategory + cover images
     sub_counts = {}
@@ -486,12 +538,24 @@ def view_customer_items(page: ft.Page):
         return ft.Container()
 
     # Lazy-load items for this category (cached for repeat opens)
-    catalog = _get_category_items(page, category)
+    catalog, was_offline = _get_category_items(page, category)
 
     items = []
     for it in catalog:
         if not subcategory or (it.get("sub_category") or "").strip() == subcategory.strip():
             items.append(it)
+
+    if not items and was_offline:
+        def _reload_category(_):
+            state["customer_category_cache"].pop(category, None)
+            page.go("customer_items")
+        return ft.Column(
+            expand=True, spacing=0,
+            controls=[
+                connectivity_banner(),
+                _offline_empty_state("Internet not connected.\nUnable to fetch items.", _reload_category),
+            ],
+        )
 
     item_cards = []
     for it in items:

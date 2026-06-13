@@ -362,7 +362,8 @@ def add_rate_item(item_number: str, image_url: str,
                   category: str,
                   sub_category: str | None = None,
                   has_sizes: bool = False,
-                  has_color: bool = False) -> bool:
+                  has_color: bool = False,
+                  tags: list | None = None) -> bool:
     """Add a new item. Category is mandatory."""
     if not category or category not in _get_valid_categories():
         return False
@@ -370,7 +371,7 @@ def add_rate_item(item_number: str, image_url: str,
     if valid_subs and (sub_category is None or sub_category not in valid_subs):
         return False
 
-    result = _post("rate_list", {
+    data = {
         "item_number": item_number,
         "image_url": image_url,
         "cost_price": cost_price,
@@ -379,7 +380,9 @@ def add_rate_item(item_number: str, image_url: str,
         "sub_category": sub_category,
         "has_sizes": has_sizes,
         "has_color": has_color,
-    })
+        "tags": tags or [],
+    }
+    result = _post("rate_list", data)
     return len(result) > 0
 
 
@@ -464,7 +467,7 @@ def get_customer_catalogue_by_category(category: str, sub_category: str = None) 
 
 
 def search_customer_items(query: str) -> list:
-    """Search customer-visible items by item_number, category, or sub_category.
+    """Search customer-visible items by item_number, category, sub_category, or tags.
     Fetches all matching items from DB and filters client-side for multi-column search.
     """
     params = "is_available=eq.true&selling_price=gt.0&order=item_number.asc"
@@ -477,7 +480,8 @@ def search_customer_items(query: str) -> list:
     filtered = [r for r in rows if
         q in (r.get("item_number") or "").lower() or
         q in (r.get("category") or "").lower() or
-        q in (r.get("sub_category") or "").lower()]
+        q in (r.get("sub_category") or "").lower() or
+        q in (" ".join(str(t) for t in (r.get("tags") or []))).lower()]
     for r in filtered:
         r["image_url"] = r.get("image_url", "")
     return filtered
@@ -488,6 +492,111 @@ def get_all_items(raise_errors: bool = False) -> list:
     for r in rows:
         r["image_url"] = r.get("image_url", "")
     return rows
+
+
+# =============================================================
+# TAG MASTER (Product Tags)
+# =============================================================
+
+
+def get_tag_master(active_only: bool = False) -> list:
+    """Return all tags from tag_master ordered by display_name.
+    Each tag dict includes 'categories' as list[str], normalized
+    from the new JSONB column or fallback to old TEXT column.
+    """
+    params = "order=display_name.asc"
+    if active_only:
+        params += "&is_active=eq.true"
+    rows = _get("tag_master", params)
+    for r in rows:
+        cats = r.get("categories")
+        cat = r.get("category")
+        if cats and isinstance(cats, list):
+            r["categories"] = [c.strip() for c in cats if c]
+        elif cat:
+            r["categories"] = [cat.strip()]
+        else:
+            r["categories"] = []
+    return rows
+
+
+def add_tag(name: str, display_name: str,
+            categories: list | None = None,
+            category: str | None = None) -> bool:
+    """Add a new tag. Normalizes name to lowercase slug.
+    Accepts categories list (preferred) or legacy category string.
+    Returns False if name already exists.
+    """
+    if not name or not name.strip():
+        return False
+    slug = name.strip().lower().replace(" ", "_")
+    data = {"name": slug, "display_name": display_name.strip() or slug}
+    if categories is not None:
+        data["categories"] = categories
+        if categories:
+            data["category"] = categories[0]
+        else:
+            data["category"] = None
+    elif category:
+        data["categories"] = [category.strip()]
+        data["category"] = category.strip()
+    else:
+        data["categories"] = []
+        data["category"] = None
+    result = _post("tag_master", data)
+    return len(result) > 0
+
+
+def update_tag(tag_id: int, name: str, display_name: str,
+               is_active: bool = True,
+               categories: list | None = None,
+               category: str | None = None) -> bool:
+    """Update an existing tag.
+    Prefers categories list; falls back to legacy category string.
+    """
+    slug = name.strip().lower().replace(" ", "_")
+    data = {
+        "name": slug,
+        "display_name": display_name.strip() or slug,
+        "is_active": is_active,
+    }
+    if categories is not None:
+        data["categories"] = categories
+        if categories:
+            data["category"] = categories[0]
+        else:
+            data["category"] = None
+    elif category is not None:
+        data["categories"] = [category.strip()] if category else []
+        data["category"] = category.strip() if category else None
+    return _patch("tag_master", f"id=eq.{tag_id}", data)
+
+
+def delete_tag(tag_id: int) -> bool:
+    """Delete a tag only if no items use it.
+    Returns False if any item references this tag.
+    """
+    rows = _get("tag_master", f"id=eq.{tag_id}&select=name")
+    if not rows:
+        return False
+    tag_name = rows[0]["name"]
+    used = _get("rate_list", f"tags=cs.%22{quote(tag_name)}%22&select=item_number&limit=1")
+    if used:
+        return False
+    return _delete("tag_master", f"id=eq.{tag_id}")
+
+
+def get_items_by_tag(tag_name: str) -> list:
+    """Return items that have the given tag in their tags JSONB array."""
+    params = f"tags=cs.%22{quote(tag_name)}%22&order=item_number.asc"
+    return _get("rate_list", params)
+
+
+def update_item_tags(item_number: str, tags: list) -> bool:
+    """Update tags JSONB array on an item."""
+    return _patch("rate_list", f"item_number=eq.{quote(item_number)}", {
+        "tags": tags,
+    })
 
 
 def update_item_prices(item_number: str, cost_price: float,

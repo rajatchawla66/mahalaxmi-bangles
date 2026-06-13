@@ -31,7 +31,7 @@
 - **Branch:** `main`
 - **CI endpoint:** https://github.com/rajatchawla66/mahalaxmi-bangles/actions
 - **CI Token:** Classic PAT with `repo` + `workflow` scopes (regenerated June 8, 2026 — stored in git remote URL, removed from all git history)
-- **Latest version:** v1.0.18 (build 44+)
+- **Latest version:** v1.0.19 (build 45)
 
 ---
 
@@ -651,6 +651,7 @@ Exit: closes dialog → calls page.window.destroy()
 - Labour Production Checklist V2 — Image-first cards (260px portrait, COVER fit, radius 12), direct routing (labour taps order → checklist, bypasses order_detail), BACK_MAP to home, pill-shaped status buttons (border_radius=20, padding 12,8).
 - Admin Home Production Summary — `Production: ✅ 3/10 ⚠ 1` on admin order cards using existing data.
 - Admin Order Detail Production Redesign — visual item cards with 64px images, per-size status pills (✅ Ready / ⬜ Pending / ⚠ Not Avail), category group headers, production summary at top.
+- **Customer Tag Filter Row (P4)** — Horizontal-scroll tag chips extracted from loaded items, in-place local filter via `_rebuild_items()` + `page.update()`, no DB call, no navigation, works offline. Tag reset on category change. Factory functions for closure safety.
 - **Customer Dashboard Performance Refactor (Phase 1)** — Category-first lazy loading: dashboard no longer preloads full catalogue. Categories load instantly from `categories` table (lightweight query). Items fetched per-category via `db.get_customer_items_by_category()` when category is tapped. Results cached in `state["customer_category_cache"]` for instant repeat opens. Search uses `db.search_customer_items()` on demand. Add Again uses `db.get_item_by_number()` (single-item fetch). Zero items fetched at startup.
 - **Home Order List mobile touch fix (BUG-030)** — `ft.ListTile` replaced with `ft.Container` split layout; clickable body with ink ripple; trailing popup menu/chevron outside click scope.
 - **Image optimization** — Uploaded images resized to 1080×1350 HD JPEG (Q93) with `resize_product_image()`: EXIF transpose, 4:5 center-crop, LANCZOS, sharpen filter.
@@ -788,6 +789,14 @@ chcp 65001
 
 | Date | Work Done | Files Changed | Status |
 |------|-----------|---------------|--------|
+| June 13, 2026 | **P4 — Customer tag filter row** in `view_customer_items()`. Tags extracted from loaded items (no DB call), horizontally scrollable chip row (NOT wrap), in-place filter via `_rebuild_items()` + `page.update()` — no navigation, no image reload. Factory functions for closure safety. Tag reset on category change in dashboard. | `views/customer.py`, `PROJECT_MEMORY.md` | Complete |
+| June 13, 2026 | Phase A2 — Multi-category tags code migration. db.py: get_tag_master normalizes categories JSONB, add_tag/update_tag accept `categories: list`. Tag Master: single-category Dropdown replaced with multi-category chip selector (Global + per-category chips, toggle behavior). Edit dialog uses same chip pattern (no Dropdown = no overlay conflict). Tag list shows multiple category badges (indigo) or Global badge (teal). P3 selector filter uses `t.get(\"categories\", [])`. | `db.py`, `views/settings.py`, `views/pricing.py`, `PROJECT_MEMORY.md` | Complete |
+| June 13, 2026 | P3 — Multi-tag chip selector in Add/Edit Item form. Tags loaded by selected category (category match + global). Chips with wrap layout, tap to toggle, indigo/grey color. New items pass tags to add_rate_item(). Edit items call update_item_tags(). Edit preload preserves existing tags including unknown ones. Proper closure scoping. | `views/pricing.py`, `PROJECT_MEMORY.md` | Complete |
+| June 13, 2026 | Tag Master bug fixes + field simplification. Fixed: (1) white screen on dialog close — removed `page.overlay.remove(dlg)` from all 4 dialog handlers (Flutter null-check crash in Flet 0.28.3). (2) Save "Failed to update" on non-last tags — Python late-binding closure bug: passed `tag_name`/`display_name`/`cat`/`is_active` as parameters to factory functions. (3) Removed duplicate Tag Name (slug) field — slug auto-derived from display name. | `views/settings.py`, `PROJECT_MEMORY.md` | Complete |
+| June 12, 2026 | Customer Search UI/UX Audit — identified 8 issues (2 HIGH: full fetch per keystroke, no debounce; 4 MEDIUM; 2 LOW). Report added as Section 14. Implementation postponed. | None (audit only) | Complete |
+| June 12, 2026 | Product Tags P2 Implementation — Tag Master admin UI in settings.py: add/edit/delete/toggle tags, category dropdown, active pill, edit AlertDialog, delete confirmation with safety check. Route + BACK_MAP in main.py. | `views/settings.py`, `main.py`, `PROJECT_MEMORY.md` | Complete |
+| June 12, 2026 | Product Tags P1 Implementation — SQL migration file (sql/migration_add_tags.sql), 6 new db.py functions (get_tag_master, add_tag, update_tag, delete_tag, get_items_by_tag, update_item_tags), modified add_rate_item (optional tags param), modified search_customer_items (tags in filter). Backend only — no UI yet. | `sql/migration_add_tags.sql` (new), `db.py` | Complete |
+| June 12, 2026 | Sync Architecture Audit — documented all full-table re-download paths, delta-sync opportunities, and implementation plan. Added as Section 15. | PROJECT_MEMORY.md | Complete |
 | June 12, 2026 | Offline fallback fix for customer lazy loading: Added `_offline_empty_state()` helper (icon + message + Reload button). `_get_category_items()` now returns `(items, was_offline)` tuple. Dashboard shows offline state when categories fail to load. Items/subcategories views show offline state when category items fail + cached catalog empty. Reload button retries DB fetch (clears cache key, navigates to self). Categories tap into genuinely empty categories now shows "No items found" (not offline state). | `views/customer.py` | Pending Android test |
 | June 12, 2026 | Customer Dashboard Performance Refactor — Category-first lazy loading. Removed full catalogue preload from dashboard (was calling `get_customer_catalogue()`). Added `get_customer_items_by_category()` for per-category DB filter. Added `state["customer_category_cache"]` dict for per-category in-memory cache. Added `search_customer_items()` for on-demand search. Refactored Add Again to use `get_item_by_number()` (single-item fetch). Updated refresh handler to clear category cache instead of full reload. Dashboard now loads ONLY categories at startup — zero items fetched until category tapped. | `views/customer.py`, `db.py`, `main.py` | Pending Android test |
 | June 12, 2026 | **BUG-030** — Home order list mobile touch fix. Replaced `ft.ListTile(on_click=...)` with `ft.Container` split layout: clickable body with `ink=True` + trailing outside click scope. Popup menu/chevron no longer triggers order navigation. | `views/home.py` | Pending Android test |
@@ -990,4 +999,728 @@ Security:
 * release-signing-backup/ added to .gitignore
 * permanent offline keystore backup created
 
+---
 
+## 14. CUSTOMER SEARCH UI/UX AUDIT (June 12, 2026)
+
+Conducted: June 12, 2026. Scope: `views/customer.py`, `db.py`, `cache.py`.
+
+### Current Flow
+- Dashboard search bar (`on_change`, 3-char minimum) navigates to `customer_search_results` page
+- Results page has its own search `TextField` (autofocus, instant `on_change` — fires on every keystroke, no debounce)
+- `db.search_customer_items(query)` fetches ALL customer-visible items from DB, filters client-side in Python
+
+### Fields Searched
+- `item_number`, `category`, `sub_category` — substring match via Python `in` (OR'd)
+
+### Issues Found
+
+| # | Issue | Severity |
+|---|-------|----------|
+| 1 | **Full catalogue fetch on every keystroke** — no server-side `ilike`, 500 items transferred per search call | HIGH |
+| 2 | **No debounce** — fires DB fetch on every `on_change` event; 3+ consecutive chars = 3+ full fetches | HIGH |
+| 3 | **No loading state** — screen stays frozen until DB responds | MEDIUM |
+| 4 | **Inconsistent min-char logic** — dashboard requires 3 chars, results page search fires instantly on 1-2 chars (results in empty-state flash) | MEDIUM |
+| 5 | **No offline empty state** — DB error + no cache shows "No results for 'X'" instead of offline message + Reload | MEDIUM |
+| 6 | **No result caching** — same query repeated re-fetches entire catalogue | MEDIUM |
+| 7 | **Inconsistent hint text** — dashboard: "Search 500+ items...", results: "Search items..." | LOW |
+| 8 | **Arrow button on dashboard** — unclear UX; calls `on_search_change(None)` which reads `search_tf.value` | LOW |
+
+### Offline Behavior
+- On DB exception: falls back to `cache.get_cached_catalog()`, same client-side filter
+- No cache → `[]` → shows "No results" (misleading)
+- **No Reload button** (unlike category items view which has `_offline_empty_state`)
+
+### Performance Risks
+- Full catalogue fetch per keystroke: ~500 items per call, 3+ calls per session
+- No server-side filtering; Supabase `ilike` would reduce payload to matching rows only
+- No search result cache; repeated same query repeats full fetch
+
+### Recommended Changes (NOT IMPLEMENTED — postponed)
+**Phase 1 (minimum):** Server-side `ilike` search in `db.py`, 300ms debounce, offline empty state, loading indicator
+**Phase 2 (UX):** Consistent hint text, search result caching, AppBar search action
+**Phase 3 (advanced):** Inline dashboard search results, search suggestions, price filters
+
+---
+
+## 15. SYNC ARCHITECTURE AUDIT (June 12, 2026)
+
+Conducted: June 12, 2026.
+
+### 1. Current Sync Architecture
+
+Two separate caching layers exist:
+
+**Layer A — Offline Cache (`cache.py`):**
+- `sync_all()`: full download of rate_list, categories, orders, images → written to `catalog.json`, `orders.json`, `sync_meta.json`
+- `get_cached_catalog()`: reads `catalog.json` → returns items (with local image path fallback)
+- `get_cached_categories()`: reads from same `catalog.json` → filters active
+- `get_cached_orders()`: reads `orders.json`
+- Called explicitly from Settings Sync page (`views/settings.py:view_sync_page`)
+- Images downloaded once (skip if local path exists)
+
+**Layer B — In-Memory State Cache (per-session):**
+- `state["catalog_cache"]` (admin pricing catalogue background fetch)
+- `state["orders_cache"]` (admin home background fetch)
+- `state["customer_category_cache"]` (customer per-category lazy-load)
+- `state["customer_categories"]` (customer dashboard categories)
+- `state["orders_cache"]` (home page)
+
+### 2. Flows That Still Full-Download
+
+| Flow | Function | Table | Frequency | Payload |
+|------|----------|-------|-----------|---------|
+| Admin catalogue | `get_all_items()` | rate_list | Every navigation to catalogue (background thread) | All columns, all rows |
+| Admin home | `get_orders_with_items()` | orders + order_items | Every navigation to home (background thread) | All columns, all rows, nested items |
+| Settings sync | `get_rate_list()` (via `sync_all`) | rate_list | On manual trigger | All columns, all rows |
+| Settings sync | `get_categories()` (via `sync_all`) | categories | On manual trigger | All columns, all rows |
+| Settings sync | `get_orders_with_items()` (via `sync_all`) | orders + order_items | On manual trigger | All columns, all rows |
+| Admin catalogue refresh | `get_categories(active_only=False)` | categories | On catalogue load | All columns, all rows |
+| Admin settings (materials) | `get_materials()` | materials | Every settings page visit | All columns, all rows |
+| Admin manage customers | `get_customers()` | customers | Every manage_customers visit | All columns, all rows |
+| Customer search | `search_customer_items()` | rate_list | Per keystroke | All customer-visible rows, all columns |
+| Customer dashboard (pre-refactor) | `get_customer_catalogue()` | rate_list | Was per-visit (now removed) | All customer-visible rows |
+
+### 3. Flows Already Optimized
+
+| Flow | Optimization | Mechanism |
+|------|-------------|-----------|
+| Customer dashboard | Category-first lazy load | Only `get_categories(active_only=True)` — no items fetched |
+| Customer category items | Per-category DB filter | `get_customer_items_by_category(category)` — 1 category per call |
+| Customer category cache | Repeated opens instant | `state["customer_category_cache"][category]` in-memory |
+| Customer Add Again | Single-item fetch | `get_item_by_number(item_no)` — 1 row |
+| Admin catalogue | Background cache | `state["catalog_cache"]` + background thread, preserves UI |
+| Admin orders | Background cache | `state["orders_cache"]` + background thread, preserves scroll |
+| Images | Already downloaded skip | `sync_all()` checks `os.path.exists()` before download |
+
+### 4. Biggest Bandwidth/Memory Offenders (ranked)
+
+1. **Admin catalogue load** (`get_all_items()`): ~500 rows × 15+ columns = heavy. Triggered every catalogue navigation.
+2. **Admin home load** (`get_orders_with_items()`): All orders with nested items. Grows linearly with order count.
+3. **Customer search** (`search_customer_items()`): Full catalogue per keystroke. Most wasteful per-use.
+4. **Settings sync** (`sync_all()`): Full everything + image download. Only on manual trigger but heaviest single operation.
+5. **Admin manage customers** (`get_customers()`): All customers every time page loads.
+
+### 5. Cache Overwrite Behavior
+
+- `catalog.json` and `orders.json` are **fully overwritten** every sync — no append/merge
+- In-memory caches (`catalog_cache`, `orders_cache`) are **replaced entirely** on background fetch
+- `customer_category_cache` is **append-only** (new categories added, never removed except on refresh)
+- Images are **not re-downloaded** if local path exists
+
+### 6. Existing Timestamp Columns
+
+| Table | Column | Purpose |
+|-------|--------|---------|
+| `orders` | `status_updated_at` | Written on status change (`set_order_status`) |
+| `customers` | `created_at` | Written on creation (`create_customer`) |
+| `customers` | `last_active_at` | Written on PIN login (`set_customer_last_active`) |
+
+**No `updated_at` columns exist on `rate_list`, `categories`, `materials`, `order_items`, `cost_breakdown`, `item_materials`.**
+
+### 7. Current Schema Delta-Sync Readiness
+
+**Not ready.** Delta sync requires:
+- `updated_at` timestamp column (with index) on every table queried for sync
+- `deleted_at` or a tombstone mechanism for deleted records (currently hard-deleted)
+- Only `orders.status_updated_at` exists — insufficient for any table
+
+### 8. Best Future Delta-Sync Strategy
+
+**Phase 1 — Add `updated_at` columns (DB migration only):**
+```sql
+ALTER TABLE rate_list ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE categories ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE orders ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE order_items ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE customers ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE materials ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+```
++ Create trigger/index: `CREATE INDEX idx_rate_list_updated_at ON rate_list(updated_at);`
+
+**Phase 2 — Last-sync tracking:**
+- Store `last_sync_times` per table in `sync_meta.json` (already has `last_sync` key)
+- Or use `app_settings` table for persistent key-value sync timestamps
+
+**Phase 3 — Incremental fetch:**
+```python
+def get_changed_items(since: str) -> list:
+    return _get("rate_list", f"updated_at=gt.{quote(since)}&order=updated_at.asc")
+```
+
+**Phase 4 — Local cache merge:**
+- Instead of `json.dump` overwrite, read existing cache, merge/update changed records, write back
+- Requires mutable cache file format (could keep full-rewrite for simplicity with small deltas)
+
+### 9. Smallest Safe Implementation Plan
+
+| Step | Effort | Impact | Risk |
+|------|--------|--------|------|
+| 1. Add `updated_at` + index to all sync tables | SQL only | Enables all future delta work | Low (new column, no code change) |
+| 2. Add `search_customer_items_server()` with `ilike` | Low | Eliminates #3 bandwidth offender | Low (new function, old unchanged) |
+| 3. Replace `get_all_items()` with minimal-column `select=necessary_cols` for admin catalogue | Low | Reduces payload per row | Low (add select param) |
+| 4. Store `last_sync_*` per-table in `sync_meta.json` | Low | Prerequisite for delta fetch | Low |
+| 5. Implement `get_changed_items(since)` + merge into cache | Medium | Full delta sync for rate_list | Medium (merge logic) |
+| 6. Schedule lightweight periodic background sync | Medium | Automatic offline cache freshness | Medium (threading) |
+| 7. Image invalidation via image URL hash/version | High | Cache-bust stale images | Low (append ?v= to URL) |
+
+### 10. Priority Order for Optimization
+
+1. **P0 — Customer search server-side `ilike`** (reduces #3 offender, very low risk, already audited separately)
+2. **P1 — `updated_at` columns for rate_list + categories** (enables all delta work)
+3. **P2 — Minimal-column admin catalogue queries** (reduces #1 offender payload per row)
+4. **P3 — Incremental rate_list fetch + merge** (builds on P1)
+5. **P4 — Incremental orders fetch + merge** (builds on P1)
+6. **P5 — Periodic background sync** (builds on P3+P4)
+
+### 11. Regression Risks
+
+| Risk | Mitigation |
+|------|------------|
+| Merge logic bug corrupts local cache | Keep full-rewrite as fallback; version cache files |
+| `updated_at` not set on existing records | `DEFAULT NOW()` handles new records; backfill via `UPDATE ... SET updated_at = NOW()` |
+| Delta fetch missed records due to clock skew | Add 1-minute overlap: `updated_at >= since - 60s` |
+| Image re-download on URL change | Compare URL hash in cache metadata; skip if same |
+| Background sync conflicts with user interaction | Only sync when app is foregrounded; cancel if dialog open (reuse `render()` guard pattern) |
+
+### 12. What Should NOT Be Optimized Yet
+
+- **Orders delta sync:** Orders change infrequently; full fetch with background thread is acceptable for current scale
+- **Customer delta sync:** Customers table is small (<200 rows); full fetch is fine
+- **Materials/costing delta sync:** Admin-only, small tables; optimize if usage grows
+- **Image cache invalidation:** Images rarely change; `os.path.exists()` skip works well
+- **Websocket/live updates:** Overkill for 1-admin + few-customer scale; adds complexity
+- **Background periodic sync for customer app:** Customer app already lazy-loads per-category; no benefit until offline cache freshness matters
+
+---
+
+## 16. PRODUCT TAGS + TAG MASTER SYSTEM — ARCHITECTURE AUDIT (June 12, 2026)
+
+Conducted: June 12, 2026. No code changes — planning only.
+
+### 1. Business Context
+
+Categories are broad product families (Chuda, Metal Kangan, Kalira, Bhawari, Seep Patti). Products within a category need flexible filter labels (e.g., Chuda → Kundan, Dot, Antique, Golden, Maroon, Bridal). These labels are **not** a second category hierarchy — they are orthogonal filter dimensions.
+
+### 2. Current Architecture Impact
+
+**rate_list table** (used by `db.py`):
+- Has `category` (single value) and `sub_category` (single value, nullable)
+- `sub_category` is treated as a sub-filter; items can only have ONE sub_category
+- No field exists for multiple tags per item
+- All fetch functions (`get_all_items`, `get_rate_list`, `get_customer_items_by_category`, `search_customer_items`) return all columns — a new `tags` JSONB column would be included automatically
+
+**categories table**:
+- Has `sub_categories` (comma-separated string) — used for the customer subcategory grid
+- This is metadata on the category, not per-item tags
+
+**customer flow** (`views/customer.py`):
+- Dashboard → category tap → either subcategory grid or items list
+- Items are filtered by `sub_category` in `view_customer_items()` at line 545
+- Items loaded per-category via `_get_category_items()` and cached in `customer_category_cache`
+- Search (`search_customer_items`) filters client-side on `item_number`, `category`, `sub_category`
+
+**admin Add/Edit form** (`views/pricing.py:58-100`):
+- Has fields: item_number, category dropdown, sub_category dropdown, availability switch, has_sizes switch, has_color switch
+- No tags input exists
+
+**Tag Master comparison** — the closest existing UI patterns:
+- **Material Master** (`views/settings.py:130-212`): TextField + rate + Add button; items listed as ListTile with delete
+- **Manage Categories** (`views/settings.py:215-479`): Form card + card list with active/inactive toggle, edit, delete
+
+**Cache** (`cache.py`):
+- `catalog.json` stores `{"items": [...], "categories": [...], "synced_at": ...}`
+- Each item dict is a full row from rate_list — a new `tags` column would be included automatically
+- `get_cached_catalog()` returns items with image_url rewrite; tags would pass through unchanged
+- `sync_all()` fetches via `db.get_rate_list()` — tags column already included
+
+### 3. Recommended Schema: OPTION A — JSONB tags + tag_master table
+
+**tag_master** (new table):
+```sql
+CREATE TABLE IF NOT EXISTS tag_master (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    category TEXT DEFAULT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tag_master_name ON tag_master(name);
+CREATE INDEX IF NOT EXISTS idx_tag_master_category ON tag_master(category);
+```
+
+**rate_list** (add column):
+```sql
+ALTER TABLE rate_list ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_rate_list_tags ON rate_list USING GIN(tags);
+```
+
+**Why Option A over Option B (normalized many-to-many):**
+
+| Factor | Option A (JSONB) | Option B (item_tags) |
+|--------|------------------|----------------------|
+| Customer filter query | Local Python filter: `tag in item.get("tags", [])` — no DB re-fetch | Needs JOIN → more complex REST query; pre-load join data into cache |
+| Offline cache | Tags stored inline in each item dict — zero format change | Needs separate cache file or nested structure |
+| Admin tag selector | Loaded from tag_master, stored as JSON array | Needs JOIN on save/load |
+| Tag rename | `UPDATE rate_list SET tags = ...` — iterates items with JSONB replace (small dataset, fine) | Simple UPDATE tag_master.name — no cascade |
+| Supabase REST filter | `tags=cs.{tag_name}` (contains) — single param | Needs join query or subquery |
+| Code complexity | Minimal — just a new column | New table, new queries, new cache logic |
+
+At current scale (~500 items, 1 admin), Option A's rename-cascade cost is negligible, and the simplicity gain in all code paths is decisive.
+
+### 4. Questions Answered
+
+**Q1: Which schema for V1?** Option A — JSONB `tags` column on `rate_list` + `tag_master` table.
+
+**Q2: Global or category-specific tags?** Both. Tags can have a `category` column (NULL = global). Customer filter shows only tags that appear in the current category's loaded items.
+
+**Q3: Should tag_master include category_id/category_name?** Yes — a `category TEXT DEFAULT NULL` column. NULL means global tag. Non-NULL means tag is specific to that category. Simple category name string (no FK — avoids referential complexity).
+
+**Q4: Customer filter — all tags or only used in current category?** Only tags that appear in the current category's loaded items. This is achieved by extracting unique tags from `item.get("tags", [])` after items are loaded per-category.
+
+**Q5: Display name + slug?** Yes — `name` is the unique slug (lowercase, no spaces), `display_name` is human-readable (e.g., name="kundan", display_name="Kundan").
+
+**Q6: Tag rename?** V1: Update tag_master.name + iterate all rate_list items containing old name, replace in JSONB array. This is a simple JSONB operation at current scale.
+
+**Q7: Inactive tags in customer filter?** No — inactive tags (`tag_master.is_active = false`) should not appear in customer filter row, even if items still reference them. Items retaining an inactive tag are still shown but without a filter chip.
+
+**Q8: Remove sub_category field later?** No — sub_category serves a different purpose (second-level category hierarchy used in subcategory grid view). Tags are orthogonal filters. Both coexist.
+
+**Q9: Offline cache store tags?** Yes — tags JSONB is a column on rate_list, so it's already included in catalog.json items array. No cache format change needed.
+
+**Q10: Search include tags?** Yes — `search_customer_items()` adds `q in (" ".join(item.get("tags", []))).lower()` to the client-side filter.
+
+**Q11: Add/Edit Item multi-tag selector?** A `ft.Column` with toggle chips from tag_master, filtered by selected category. Selected tags stored as `state["selected_tags"]` list.
+
+**Q12: SQL migrations needed?** Two: (1) CREATE tag_master table, (2) ALTER rate_list ADD COLUMN tags JSONB.
+
+### 5. Recommended Product Tag Behavior (V1)
+
+- Tags stored in `rate_list.tags` as JSONB array of strings (tag names)
+- Tags chosen from tag_master — no free-text input
+- Customer filter row shows tags extracted from the current category's items
+- Inactive tags excluded from filter row even if items reference them
+- Default selected tag = "All"
+- Single-tap filter (V1); multi-select deferred
+
+### 6. SQL Migrations Required
+
+Two SQL statements, run in Supabase SQL Editor:
+
+```sql
+-- 1. Create tag_master table
+CREATE TABLE IF NOT EXISTS tag_master (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    category TEXT DEFAULT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tag_master_name ON tag_master(name);
+CREATE INDEX IF NOT EXISTS idx_tag_master_category ON tag_master(category);
+
+-- 2. Add tags column to rate_list
+ALTER TABLE rate_list ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_rate_list_tags ON rate_list USING GIN(tags);
+```
+
+Save as `sql/migration_add_tags.sql`.
+
+### 7. Tag Master UI Recommendation
+
+**Settings menu** (`views/settings.py`):
+- Add `ListTile` after Material Master (line 41): `"Tag Master"` with `TAG` icon (or `LABEL`/`BOOKMARK`), routes to `"tag_master"`
+- Add route in `main.py`, BACK_MAP entry
+
+**Tag Master page** (new `views/tag_master.py` or inline in `views/settings.py`):
+
+Follow **Material Master pattern** (simpler than Manage Categories):
+```
+Header: "🏷️ Tag Master" + subtitle
+Add row: [TextField "Tag Name"] [TextField "Display Name"] [Dropdown "Category (optional)"] [Add button]
+---
+Existing tags (each as card):
+  - Name (bold) + Display name (grey)
+  - Category badge (if set)
+  - Active pill / Inactive pill (click to toggle)
+  - ✏️ Edit button → inline dialog: rename name + display_name + reassign category
+  - 🗑️ Delete button → confirm dialog → `db.delete_tag()` — fails if items still use tag, shows error
+```
+
+**db.py functions needed:**
+- `get_tag_master(active_only=False)` → list of tag dicts
+- `add_tag(name, display_name, category=None)` → bool
+- `update_tag(tag_id, name, display_name, category, is_active)` → bool
+- `delete_tag(tag_id)` → bool (fails with Supabase FK or check)
+- `get_items_by_tag(tag_name)` → list of item_numbers (for delete safety check)
+
+No separate views file is strictly needed — Tag Master can be a new function in `views/settings.py` (~100 lines), following Material Master patterns (lines 130-212). If it grows, extract to `views/tag_master.py`.
+
+### 8. Add/Edit Item Tag Selector Recommendation
+
+In `view_add_item()` (`views/pricing.py`):
+
+**After existing fields (after `has_color_switch`, line 100):**
+
+1. On category_dd change or page load, load `db.get_tag_master(active_only=True)` → filter to global + matching category
+2. Display as a section label "🏷️ Tags" + a `ft.Column` of toggle chips:
+
+```python
+tag_chips = []
+selected_tags = state.setdefault("selected_tags", [])
+available_tags = load_tags_for_category(selected_category)
+
+for t in available_tags:
+    is_selected = t["name"] in selected_tags
+    chip = ft.Container(
+        content=ft.Text(t["display_name"], size=12),
+        bgcolor=indigo_100 if is_selected else grey_100,
+        border_radius=16,
+        padding=ft.Padding(left=12, right=12, top=6, bottom=6),
+        on_click=lambda e, tn=t["name"]: toggle_tag(tn),
+        ink=True,
+    )
+    tag_chips.append(chip)
+
+tags_row = ft.Row(tag_chips, wrap=True, spacing=6, run_spacing=6)
+```
+
+3. `toggle_tag(tag_name)` function: adds/removes from `selected_tags`, updates chip bgcolors
+4. On save (`on_save_and_generate`):
+   - For existing items: new `db.update_item_tags(item_no, selected_tags)` PATCHes `tags` column
+   - For new items: pass `tags=selected_tags` to `add_rate_item()`
+
+**db.py new/updated functions:**
+- `update_item_tags(item_number: str, tags: list) -> bool` — PATCH `{"tags": tags}`
+- `update add_rate_item()` signature to accept optional `tags: list = None`
+
+### 9. Customer Tag Filter UI Recommendation
+
+In `view_customer_items()` (`views/customer.py`), after `_get_category_items()`:
+
+**After items are loaded (line 541-546), extract unique tags:**
+
+```python
+# After items are loaded
+all_tags = set()
+for it in items:
+    for t in it.get("tags", []):
+        all_tags.add(t)
+sorted_tags = sorted(all_tags)  # or sort by business order
+```
+
+**Before item grid, render filter row:**
+
+```python
+selected_tag = state.get("customer_selected_tag", None)
+
+def on_tag_select(e, tag_name=None):
+    state["customer_selected_tag"] = tag_name
+    page.update()  # or page.go("customer_items") for re-render
+
+tag_chips = [create_chip("All", selected_tag is None, lambda e: on_tag_select(e))]
+for t in sorted_tags:
+    tag_chips.append(create_chip(t, selected_tag == t, lambda e, tn=t: on_tag_select(e, tn)))
+
+filter_row = ft.Container(
+    content=ft.Row(tag_chips, scroll=ft.ScrollMode.AUTO, spacing=4),
+    padding=ft.Padding(left=16, right=16, top=0, bottom=8),
+)
+```
+
+**Filter items by selected tag:**
+
+```python
+if selected_tag:
+    items = [it for it in items if selected_tag in it.get("tags", [])]
+```
+
+**Chip style:**
+- Selected: indigo background, white text
+- Unselected: grey_100 background, grey text
+- Chips are horizontal scrolling (not wrap), to avoid vertical clutter
+- "All" chip always first, highlighted when no tag selected
+
+**Key design choices:**
+- Filter is **local** — no new DB fetch needed (all category items already loaded)
+- Tags come from loaded items, not from tag_master (handles offline cache automatically)
+- Inactive tags are excluded during tag_master load in admin; on customer side, only tags present on items are shown
+- Works with lazy-loaded category cache — tag filter applies to whatever items are in cache
+
+### 10. Search Behavior
+
+In `search_customer_items()` (`db.py:466-483`), add tags to the client-side filter:
+
+```python
+q in (" ".join(str(t) for t in (r.get("tags") or []))).lower()
+```
+
+This is added to the existing `or` chain:
+
+```python
+filtered = [r for r in rows if
+    q in (r.get("item_number") or "").lower() or
+    q in (r.get("category") or "").lower() or
+    q in (r.get("sub_category") or "").lower() or
+    q in (" ".join(str(t) for t in (r.get("tags") or []))).lower()]
+```
+
+Future optimization: Supabase `ilike` on JSONB tags text (or use `?` operator) when server-side search is implemented.
+
+In `view_customer_search()` (`views/customer.py:590-629`), the offline fallback also needs the same tags filter added.
+
+### 11. Offline/Cache Impact
+
+**Minimal impact:**
+- `tags` is a JSONB column on `rate_list` — it is automatically included in `_get("rate_list", ...)` results
+- `sync_all()` → `catalog.json` — tags are stored inline in each item dict, no format change
+- `get_cached_catalog()` — returns items with tags untouched
+- `get_cached_categories()` — unrelated to tags
+- No new cache files needed
+
+**tag_master for offline:** Not needed in V1 for customer filter (tags extracted from loaded items, not from tag_master). For admin Add/Edit form, tag master is fetched live from DB (same as categories/materials are today). Deferred: cache tag_master in sync_meta or new file.
+
+### 12. Implementation Phases
+
+| Phase | Scope | Estimated Effort | Files Changed | Risk |
+|-------|-------|-----------------|---------------|------|
+| **P1 — Foundation** | SQL migration + db.py functions (CRUD for tags) | Low (~50 lines) | `db.py`, `sql/migration_add_tags.sql` (new) | Low — new table + column, safe |
+| **P2 — Admin Tag Master UI** | Settings page for CRUD tags | Low (~100 lines) | `views/settings.py`, `main.py` | Low — follows Material Master pattern |
+| **P3 — Admin tag selector** | Multi-tag chip selector in Add/Edit form + save tags | Medium (~80 lines) | `views/pricing.py`, `db.py` | Low — new UI element, existing save path |
+| **P4 — Customer tag filter** | Horizontal chip row, local tag filter | Medium (~60 lines) | `views/customer.py` | Medium — affects customer flow |
+| **P5 — Search + polish** | Tags in search, inactive tag handling, delete safety | Low (~30 lines) | `db.py`, `views/customer.py` | Low — additive changes |
+
+### 13. Regression Risks
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Old items without `tags` field | Customer filter row shows "All" only — acceptable | `.get("tags", [])` in all reads |
+| Tag rename doesn't cascade to item tags | Stale tag names in items | Rename function: UPDATE rate_list SET tags = jsonb_set(...) WHERE tags @> '["old_name"]'; |
+| Customer filter chip count too high | Horizontal scroll overflow | Use `ft.Row(scroll=ft.ScrollMode.AUTO)` — horizontal scroll, no vertical clutter |
+| Offline cache without tags | `.get("tags", [])` returns empty | No crash, customer filter shows "All" only |
+| tag_master fetch failure in admin form | No tags shown | Fallback to empty list; item saves without tags |
+| Delete tag used by items | Orphan tag references in items | `delete_tag()` checks `SELECT COUNT(*) FROM rate_list WHERE tags @> '["name"]'` first; refuses if > 0 |
+| GIN index size growth | Minimal at ~500 items | Acceptable for current scale |
+
+### 14. What Should Be Postponed
+
+| Feature | Reason | Revisit When |
+|---------|--------|--------------|
+| **Category-specific tag master validation** (restrict tag assignment to matched category) | V1 can show all active tags; category is informational | Phase 6 or user request |
+| **Multi-tag customer filter** (select multiple chips) | V1 is single-tap only | User request |
+| **Tag reorder / priority** (control chip order in customer filter) | Alphabetic sort is fine for V1 | User request |
+| **tag_master offline cache** | Not needed — tags extracted from loaded items | If sync without DB needed for tag management |
+| **Auto-cascade tag rename to items** | Manual batch function or skip; rename is rare | If rename becomes frequent |
+| **Supabase server-side tag search (`ilike`)** | Already planned in Search Audit Phase 1; add tags then | When search is optimized |
+| **Admin bulk tag assignment** | Use Add/Edit per item for now | If bulk operation needed |
+| **Customer filter "clear all"** | Single-tap mode doesn't need it | When multi-select is added |
+
+### 15. Summary of Code Changes (per file)
+
+| File | What Changes |
+|------|--------------|
+| `db.py` | New: `get_tag_master()`, `add_tag()`, `update_tag()`, `delete_tag()`, `get_items_by_tag()`, `update_item_tags()`. Modified: `add_rate_item()` (optional tags param), `search_customer_items()` (tags in filter) |
+| `sql/migration_add_tags.sql` (new) | CREATE tag_master, ALTER rate_list ADD tags JSONB |
+| `views/settings.py` | New: `view_tag_master()` function (~100 lines). Modified: settings menu adds Tag Master ListTile |
+| `main.py` | New route `"tag_master"`, BACK_MAP entry |
+| `views/pricing.py` | Modified: `view_add_item()` adds tag chip selector section, `on_save_and_generate()` includes tags in save |
+| `views/customer.py` | Modified: `view_customer_items()` adds tag filter row and local tag filtering |
+| `startup_progress.md` | Track migration run status |
+
+### 16. Flet 0.28.3 UI Constraints for Tag Implementation
+
+| Constraint | Impact | Workaround |
+|------------|--------|------------|
+| No native multi-select component | Cannot use ft.Dropdown with multiple | Use toggle chips (ft.Container with on_click) in a Row(wrap=True) |
+| ft.Dropdown on_change (not on_select) | For dropdown-based tag picking | Use on_change for any category dropdown that filters tags |
+| ft.Container with ink=True | For chip tap feedback | Add ink=True to tag chip containers for visual feedback |
+| ft.Row(wrap=True) for chip wrapping | Available and works | Use for admin tag selector overflow |
+| ft.Row(scroll=AUTO) for horizontal scroll | Available and works | Use for customer filter row to avoid vertical clutter |
+| ft.ListView tag count mismatch (BUG-017) | Tag filter row must NOT be directly in ListView | Wrap filter row + item grid in a Column, then put Column in ListView |
+
+### 17. V1 UI Sketches (Text)
+
+**Admin Add/Edit Item — Tags section:**
+```
+┌─────────────────────────────────────────────────┐
+│  🏷️ Tags                                        │
+│                                                 │
+│  [kundan] [dot] [antique] [golden] [bridal]     │
+│  [maroon]  [rose-gold]  [silver]                │
+│                                                 │
+│  (tap to toggle — selected chips highlighted)    │
+└─────────────────────────────────────────────────┘
+```
+
+**Customer Items — Tag filter row:**
+```
+┌─────────────────────────────────────────────────┐
+│  Chuda                                          │
+│                                                 │
+│  [All] [Kundan] [Dot] [Antique] [Golden] →      │
+│                                                 │
+│  ┌──────┐  ┌──────┐  ┌──────┐                   │
+│  │ img  │  │ img  │  │ img  │                   │
+│  │ CH-1 │  │ CH-2 │  │ CH-3 │                   │
+│  │ ₹450 │  │ ₹550 │  │ ₹650 │                   │
+│  └──────┘  └──────┘  └──────┘                   │
+└─────────────────────────────────────────────────┘
+```
+
+**Tag Master (Settings):**
+```
+┌─────────────────────────────────────────────────┐
+│  🏷️ Tag Master                                  │
+│  Manage product tags for filtering               │
+│                                                 │
+│  [Tag Name] [Display Name] [Category ▼] [➕Add]  │
+│  ─────────────────────────────────────────────── │
+│  ┌─────────────────────────────────────────────┐ │
+│  │ kundan                           ● Active   │ │
+│  │ Kundan                           [✏️] [🗑️]  │ │
+│  │ Chuda category                              │ │
+│  ├─────────────────────────────────────────────┤ │
+│  │ dot                              ● Active   │ │
+│  │ Dot Chuda                        [✏️] [🗑️]  │ │
+│  │ Chuda category                              │ │
+│  └─────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+```
+
+### 18. First-Time Migration Sequence
+
+1. Run SQL in Supabase SQL Editor (create tag_master table + add tags column)
+2. Populate tag_master with initial tags from user's business knowledge
+3. (Optional) Batch-update existing items: `UPDATE rate_list SET tags = '["kundan"]' WHERE ...`
+4. Deploy code with db.py, settings UI, add/edit selector, customer filter
+5. APK build via CI → deploy
+
+### 19. Phase P1 Implementation (June 12, 2026)
+
+**Completed — backend infrastructure for tags:**
+
+| Item | Status |
+|------|--------|
+| `sql/migration_add_tags.sql` | Created — verified: tag_master table + 6 columns, rate_list.tags JSONB column, UNIQUE constraint, RLS disabled all confirmed present in Supabase |
+| `db.py:get_tag_master()` | Added — fetches from tag_master, optional active_only filter |
+| `db.py:add_tag()` | Added — normalizes name to lowercase slug, validates |
+| `db.py:update_tag()` | Added — updates name/display_name/category/is_active |
+| `db.py:delete_tag()` | Added — safety check: refuses if any item references tag |
+| `db.py:get_items_by_tag()` | Added — queries rate_list where tags contains tag_name |
+| `db.py:update_item_tags()` | Added — PATCHes tags JSONB on rate_list |
+| `db.py:add_rate_item()` | Modified — accepts optional `tags` param, backward compatible |
+| `db.py:search_customer_items()` | Modified — includes tags in client-side search filter |
+
+**Delete safety:** `delete_tag()` first fetches the tag name, then queries `rate_list` with `tags=cs.%22{tag_name}%22` (JSONB contains). If any item uses the tag, returns False without deleting.
+
+**Search update:** `search_customer_items()` now also matches against tags: `q in (" ".join(str(t) for t in (r.get("tags") or []))).lower()`
+
+### 20. Phase P2 Implementation (June 12, 2026 — updated June 13)
+
+**Completed — Tag Master admin UI:**
+
+| Item | Status |
+|------|--------|
+| `views/settings.py:view_tag_master()` | Added — CRUD UI for tag management |
+| `views/settings.py` settings menu | Tag Master ListTile added (purple LABEL icon, between Material Master & Manage Customers) |
+| `main.py` route | `"tag_master"` → `v_settings.view_tag_master(page)` |
+| `main.py` BACK_MAP | `"tag_master": "settings"` |
+
+**UI structure:**
+- Title bar: "🏷️ Tag Master" with subtitle
+- Add row: single "Tag Name" TextField (auto-derived slug) + Category (optional) dropdown + green Add button
+- Divider
+- Scrollable tag list, each in a bordered Container:
+  - Display name (bold 15px) + Active/Inactive pill
+  - Slug (grey `name` text)
+  - Category badge (if set) — small indigo pill
+  - Edit + Delete `TextButton`s, right-aligned
+  - Tappable active/inactive circle (●) on far right
+
+**Active/inactive toggle:** Click the ●/○ circle — calls `db.update_tag()` with inverted `is_active`. Refreshes list on success. Red snackbar on failure.
+
+**Edit flow:** Opens `AlertDialog` with Display Name TextField + Category dropdown + Status dropdown (Active/Inactive). Slug auto-derived from display name. Save calls `db.update_tag()`. Red snackbar on failure.
+
+**Delete flow:** Confirmation `AlertDialog`. Calls `db.delete_tag(id)`. On `False`: red snackbar `"❌ Tag is used by items and cannot be deleted"`. On success: refreshes list, green snackbar.
+
+**Design choices:**
+- Follows Material Master pattern (single-view, inline add row, compact list)
+- No `ft.Card` — uses `ft.Container` with border
+- Active/inactive as pill text chip, not `ft.Switch`
+- Category dropdown loaded from `db.get_categories(active_only=True)` with "Global (any category)" default
+- No nested scrollables — single `ft.Column(scroll=AUTO)` wrapper
+- State: no caching needed — fetched fresh from DB on render
+- Tag Name field removed: slug auto-derived from display name (`dn.strip().lower().replace(" ", "_")`)
+
+**Bug fixes applied (June 13):**
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| White screen on dialog close | `page.overlay.remove(dlg)` after `dlg.open=False` causes Flutter null-check crash in Flet 0.28.3 | Removed all 4 `page.overlay.remove(dlg)` calls — close pattern is now `dlg.open=False; page.update()` only |
+| Save shows "Failed to update" on non-last tags | Python late-binding closure: `tag_name`/`display_name`/`cat`/`is_active` from for-loop captured by reference, always resolved to last iteration's values | Passed all 4 variables as parameters to `make_edit()`, `make_delete()`, `make_toggle()` factory functions |
+
+**Phase P4 implemented (June 13, 2026):** Customer tag filter row completed. See Section 22.
+
+### 21. Phase P3 Implementation (June 13, 2026)
+
+**Completed — Multi-tag selector in Add/Edit Item form:**
+
+| Item | Status |
+|------|--------|
+| `views/pricing.py` tag chip UI | Added — wrap-enabled chip row below switches, above image picker |
+| Category-tag filter | Tags filtered by selected category + global (null category) tags, active only |
+| Toggle behavior | Tap chip to select/deselect, immediate visual feedback, no full page rebuild |
+| New item save | `tags=state["selected_tags"]` passed to `add_rate_item()` |
+| Edit item save | `db.update_item_tags()` called after other updates, preserves unknown tags |
+| Edit preload | Existing item tags loaded into `state["selected_tags"]`, chips pre-highlighted |
+| Form reset | Tags cleared on form reset after save |
+| Closure safety | `lambda e, tn=tag_name: _toggle_tag(tn)` — default-arg capture avoids late-binding bug |
+
+**Architecture:**
+- `state["selected_tags"]` — `list[str]` of selected tag slugs, maintained in state
+- `_displayed_tags` — closure-scoped list of active tag dicts for current category
+- `_rebuild_tag_chips()` — clears + rebuilds `tags_row.controls` from `_displayed_tags` + `state["selected_tags"]`
+- `_load_tags_for_category(cat_name)` — queries `db.get_tag_master(active_only=True)`, filters by category match, triggers chip rebuild
+- `_toggle_tag(tag_name)` — adds/removes from `state["selected_tags"]`, triggers chip rebuild
+- Category change: clears `selected_tags`, loads tags for new category
+- Item lookup edit: loads `existing.get("tags")` into `selected_tags`, triggers chip rebuild
+- Save (new): `tags=state.get("selected_tags", [])` passed to `add_rate_item()`
+- Save (edit): `db.update_item_tags(item_no, state.get("selected_tags", []))` after other updates
+
+**Files changed:**
+| File | Changes |
+|------|---------|
+| `views/pricing.py` | Added ~50 lines: tag helpers (`_rebuild_tag_chips`, `_load_tags_for_category`, `_toggle_tag`), tag row UI, modified 3 functions (`on_category_select`, `on_item_lookup`, `on_save_and_generate`), modified form reset |
+
+### 22. Phase P4 Implementation (June 13, 2026)
+
+**Completed — Customer tag filter row:**
+
+| Item | Status |
+|------|--------|
+| `views/customer.py:view_customer_items()` | Added tag extraction from loaded items + in-place filter |
+| `views/customer.py:view_customer_dashboard()` | Added `state["customer_selected_tag"] = None` on category change |
+
+**Architecture:**
+- Tag chips extracted from `it.get("tags", [])` across all loaded items for current category — no DB call, works offline
+- Display name derived from slug: `slug.replace("_", " ").title()` — no `tag_master` fetch needed
+- Chips are horizontally scrollable (`ft.Row(scroll=AUTO)` in a fixed-height Container) — NOT wrap
+- `_rebuild_items()` function rebuilds both chip row and item cards in-place via `page.update()` — no navigation, no image reload, no re-fetch
+- Factory functions `_make_all_chip()` and `_make_tag_chip(slug)` avoid late-binding closure bugs
+- Selected chip: indigo background, white text. Unselected: grey background, dark text.
+- "All" chip always first, highlighted when no filter active
+- Empty filtered state shows SEARCH_OFF icon + "No items found for this filter"
+
+**Filter lifecycle:**
+- Default: "All" (no filter), all items shown
+- Chip tap → sets `state["customer_selected_tag"]` → `_rebuild_items()` updates chip colors + filters cards → `page.update()`
+- Category change (via dashboard) → `customer_selected_tag` reset to `None`
+- Back from item detail → tag preserved (state persists across renders)
+- Category cache cleared (refresh) → `customer_selected_tag` reset to `None`
+
+**Key design choices:**
+- Local-only filter — no DB queries, no network dependency
+- Tags come from loaded items (not tag_master) — works identically online and offline
+- `state.setdefault("customer_selected_tag", None)` — first-visit default; persists across renders within same category session
+- In-place rebuild (no `page.go`) — instant tap response, scroll position preserved

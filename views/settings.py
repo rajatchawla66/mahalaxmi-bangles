@@ -41,6 +41,14 @@ def view_settings(page: ft.Page):
         ),
         ft.Divider(height=1),
         ft.ListTile(
+            leading=ft.Icon(ft.Icons.LABEL, color=ft.Colors.PURPLE_700),
+            title=ft.Text("Tag Master", weight=ft.FontWeight.W_500),
+            subtitle=ft.Text("Manage product filter tags"),
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+            on_click=lambda _: go("tag_master"),
+        ),
+        ft.Divider(height=1),
+        ft.ListTile(
             leading=ft.Icon(ft.Icons.PEOPLE, color=ft.Colors.INDIGO_700),
             title=ft.Text("Manage Customers", weight=ft.FontWeight.W_500),
             subtitle=ft.Text("Add, edit, block customers and manage PINs"),
@@ -566,6 +574,339 @@ def view_sync_page(page: ft.Page):
             ],
         ),
     )
+
+
+# ============================================================
+# TAG MASTER
+# ============================================================
+
+
+def view_tag_master(page: ft.Page):
+    state = page.state
+    go = page.go
+    go_back = page.go_back
+    snack = page.snack
+    logout = page.logout
+
+    display_name_tf = ft.TextField(label="Tag Name", height=45,
+                                    hint_text="e.g. Kundan")
+    _selected_categories = []
+    _all_cats = [c.get("name", "") for c in db.get_categories(active_only=True)]
+
+    cats_title = ft.Text("Categories", size=12, color=ft.Colors.GREY_600)
+    cats_row = ft.Row(wrap=True, spacing=6, run_spacing=4)
+
+    def _rebuild_cats_chips():
+        cats_row.controls.clear()
+        is_global = len(_selected_categories) == 0
+        cats_row.controls.append(ft.Container(
+            content=ft.Text("Global", size=12, weight=ft.FontWeight.W_500,
+                             color=ft.Colors.WHITE if is_global else ft.Colors.BLACK87),
+            padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+            border_radius=16,
+            bgcolor=ft.Colors.INDIGO_400 if is_global else ft.Colors.GREY_200,
+            ink=True,
+            on_click=lambda _: _select_global(),
+        ))
+        for c in _all_cats:
+            sel = c in _selected_categories
+            bg = ft.Colors.INDIGO_400 if sel else ft.Colors.GREY_200
+            fg = ft.Colors.WHITE if sel else ft.Colors.BLACK87
+            cats_row.controls.append(ft.Container(
+                content=ft.Text(c, size=12, color=fg),
+                padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+                border_radius=16,
+                bgcolor=bg,
+                ink=True,
+                on_click=lambda e, cn=c: _toggle_cat_chip(cn),
+            ))
+
+    def _select_global():
+        _selected_categories.clear()
+        _rebuild_cats_chips()
+
+    def _toggle_cat_chip(cat_name):
+        if cat_name in _selected_categories:
+            _selected_categories.remove(cat_name)
+        else:
+            _selected_categories.append(cat_name)
+        _rebuild_cats_chips()
+
+    _rebuild_cats_chips()
+
+    tag_list = ft.Column(spacing=6)
+
+    def refresh_tags():
+        tags = db.get_tag_master(active_only=False)
+        tag_list.controls.clear()
+        if not tags:
+            tag_list.controls.append(
+                ft.Text("No tags created yet.", color=ft.Colors.GREY_600, italic=True)
+            )
+        else:
+            for t in tags:
+                tid = t["id"]
+                tag_name = t["name"]
+                display_name = t.get("display_name", tag_name)
+                cats = t.get("categories", [])
+                is_active = t.get("is_active", True)
+
+                def make_toggle(tid_inner, current_active, tag_name, display_name, categories):
+                    def _h(e):
+                        new_active = not current_active
+                        ok = db.update_tag(tid_inner, tag_name, display_name,
+                                           is_active=new_active, categories=categories)
+                        if not ok:
+                            snack("❌ Failed to update tag status.", ft.Colors.RED_400)
+                        else:
+                            refresh_tags()
+                        page.update()
+                    return _h
+
+                def make_edit(t_inner, tag_name, display_name, categories, is_active):
+                    def _h(e):
+                        edit_dn = ft.TextField(label="Display Name", value=display_name)
+                        edit_cats = list(categories)
+                        edit_all_cats = [c.get("name", "") for c in db.get_categories(active_only=True)]
+                        edit_cats_title = ft.Text("Categories", size=12, color=ft.Colors.GREY_600)
+                        edit_cats_row = ft.Row(wrap=True, spacing=6, run_spacing=4)
+
+                        def _rebuild_edit_chips():
+                            edit_cats_row.controls.clear()
+                            is_global = len(edit_cats) == 0
+                            edit_cats_row.controls.append(ft.Container(
+                                content=ft.Text("Global", size=12, weight=ft.FontWeight.W_500,
+                                                 color=ft.Colors.WHITE if is_global else ft.Colors.BLACK87),
+                                padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+                                border_radius=16,
+                                bgcolor=ft.Colors.INDIGO_400 if is_global else ft.Colors.GREY_200,
+                                ink=True,
+                                on_click=lambda _: (_set_global_edit(), _rebuild_edit_chips()),
+                            ))
+                            for c in edit_all_cats:
+                                sel = c in edit_cats
+                                bg = ft.Colors.INDIGO_400 if sel else ft.Colors.GREY_200
+                                fg = ft.Colors.WHITE if sel else ft.Colors.BLACK87
+                                edit_cats_row.controls.append(ft.Container(
+                                    content=ft.Text(c, size=12, color=fg),
+                                    padding=ft.Padding(left=10, right=10, top=4, bottom=4),
+                                    border_radius=16,
+                                    bgcolor=bg,
+                                    ink=True,
+                                    on_click=lambda e, cn=c: (_toggle_edit_cat(cn), _rebuild_edit_chips()),
+                                ))
+
+                        def _set_global_edit():
+                            edit_cats.clear()
+
+                        def _toggle_edit_cat(cat_name):
+                            if cat_name in edit_cats:
+                                edit_cats.remove(cat_name)
+                            else:
+                                edit_cats.append(cat_name)
+
+                        _rebuild_edit_chips()
+
+                        edit_active_dd = ft.Dropdown(
+                            label="Status",
+                            options=[
+                                ft.dropdown.Option("true", "Active"),
+                                ft.dropdown.Option("false", "Inactive"),
+                            ],
+                            value=str(is_active).lower(),
+                        )
+
+                        def do_update(_):
+                            new_dn = (edit_dn.value or "").strip()
+                            new_cats = list(edit_cats)
+                            new_active = edit_active_dd.value == "true"
+                            if not new_dn:
+                                snack("Display name required.", ft.Colors.RED_400)
+                                return
+                            ok = db.update_tag(
+                                t_inner, tag_name, new_dn,
+                                is_active=new_active, categories=new_cats,
+                            )
+                            if not ok:
+                                snack("❌ Failed to update tag.", ft.Colors.RED_400)
+                            else:
+                                dlg.open = False
+                                refresh_tags()
+                                page.update()
+                                snack("✅ Tag updated.", ft.Colors.GREEN_700)
+
+                        dlg = ft.AlertDialog(
+                            title=ft.Text(f"Edit: {display_name}"),
+                            content=ft.Column([
+                                edit_dn,
+                                edit_cats_title,
+                                edit_cats_row,
+                                edit_active_dd,
+                            ], tight=True, spacing=10, width=280),
+                            actions=[
+                                ft.TextButton("Cancel", on_click=lambda _: close_dlg(dlg)),
+                                ft.FilledButton("Save", on_click=do_update),
+                            ],
+                        )
+                        page.overlay.append(dlg)
+                        dlg.open = True
+                        page.update()
+                    return _h
+
+                def make_delete(t_inner, display_name):
+                    def _h(e):
+                        def confirm(_):
+                            dlg.open = False
+                            ok = db.delete_tag(t_inner)
+                            if not ok:
+                                snack("❌ Tag is used by items and cannot be deleted.", ft.Colors.RED_400)
+                            else:
+                                refresh_tags()
+                                page.update()
+                                snack("✅ Tag deleted.", ft.Colors.GREEN_700)
+                            page.update()
+                        def cancel(_):
+                            dlg.open = False
+                            page.update()
+                        dlg = ft.AlertDialog(
+                            title=ft.Text(f"Delete '{display_name}'?"),
+                            content=ft.Text("This action cannot be undone.", size=13),
+                            actions=[
+                                ft.TextButton("Cancel", on_click=cancel),
+                                ft.FilledButton("Delete", on_click=confirm, color=ft.Colors.WHITE, bgcolor=ft.Colors.RED_600),
+                            ],
+                        )
+                        page.overlay.append(dlg)
+                        dlg.open = True
+                        page.update()
+                    return _h
+
+                active_color = ft.Colors.GREEN_700 if is_active else ft.Colors.GREY_400
+                active_label = "● Active" if is_active else "○ Inactive"
+
+                info_col = ft.Column([
+                    ft.Row([
+                        ft.Text(display_name, size=15, weight=ft.FontWeight.W_600),
+                        ft.Container(
+                            content=ft.Text(active_label, size=11, color=active_color, weight=ft.FontWeight.W_500),
+                            padding=ft.Padding(left=8, right=8, top=3, bottom=3),
+                            border_radius=12,
+                            bgcolor=ft.Colors.with_opacity(0.1, active_color),
+                        ),
+                    ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ft.Text(tag_name, size=11, color=ft.Colors.GREY_500),
+                ])
+                if cats:
+                    for c in cats:
+                        info_col.controls.append(
+                            ft.Container(
+                                content=ft.Text(c, size=10, color=ft.Colors.WHITE),
+                                bgcolor=ft.Colors.INDIGO_400,
+                                padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+                                border_radius=8,
+                            )
+                        )
+                else:
+                    info_col.controls.append(
+                        ft.Container(
+                            content=ft.Text("Global", size=10, color=ft.Colors.WHITE),
+                            bgcolor=ft.Colors.TEAL_400,
+                            padding=ft.Padding(left=6, right=6, top=2, bottom=2),
+                            border_radius=8,
+                        )
+                    )
+
+                actions_row = ft.Row([
+                    ft.TextButton("✏️ Edit", on_click=make_edit(tid, tag_name, display_name, cats, is_active), height=30),
+                    ft.TextButton("🗑️ Delete", on_click=make_delete(tid, display_name),
+                                   height=30, style=ft.ButtonStyle(color=ft.Colors.RED_600)),
+                ], spacing=4)
+
+                tag_list.controls.append(
+                    ft.Container(
+                        padding=ft.Padding(left=14, right=10, top=10, bottom=6),
+                        border_radius=10,
+                        border=ft.border.all(1, ft.Colors.GREY_200),
+                        bgcolor=ft.Colors.WHITE,
+                        content=ft.Column([
+                            ft.Row([
+                                info_col,
+                                ft.Container(
+                                    content=ft.Text("●", size=14, color=active_color),
+                                    on_click=make_toggle(tid, is_active, tag_name, display_name, cats),
+                                ),
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                vertical_alignment=ft.CrossAxisAlignment.START),
+                            ft.Row([
+                                actions_row,
+                            ], alignment=ft.MainAxisAlignment.END),
+                        ], spacing=4),
+                    )
+                )
+        page.update()
+
+    def add_tag(_):
+        dn = (display_name_tf.value or "").strip()
+        if not dn:
+            snack("Enter a tag name.", ft.Colors.RED_500)
+            return
+
+        slug = dn.strip().lower().replace(" ", "_")
+        existing_tags = db.get_tag_master(active_only=False)
+        if any(t["name"] == slug for t in existing_tags):
+            snack(f"❌ Tag '{dn}' already exists.", ft.Colors.RED_400)
+            return
+
+        ok = db.add_tag(dn, dn, categories=list(_selected_categories))
+        if not ok:
+            snack("❌ Failed to create tag. Check: (1) Run the SQL migration in Supabase. (2) Disable RLS on tag_master table: ALTER TABLE tag_master DISABLE ROW LEVEL SECURITY;", ft.Colors.RED_400)
+        else:
+            display_name_tf.value = ""
+            _selected_categories.clear()
+            _rebuild_cats_chips()
+            refresh_tags()
+            snack("✅ Tag added.", ft.Colors.GREEN_700)
+        page.update()
+
+    def close_dlg(dlg):
+        dlg.open = False
+        page.update()
+
+    refresh_tags()
+
+    return ft.Column(
+        expand=True, spacing=0, scroll=ft.ScrollMode.AUTO,
+        controls=[
+            ft.Container(
+                padding=ft.Padding(left=20, right=20, top=16, bottom=8),
+                content=ft.Column([
+                    ft.Text("🏷️ Tag Master", size=22, weight=ft.FontWeight.BOLD),
+                    ft.Text("Manage product tags used for customer filtering.",
+                            size=12, color=ft.Colors.GREY_600),
+                ], spacing=4),
+            ),
+            ft.Container(
+                padding=ft.Padding(left=20, right=20, top=8, bottom=8),
+                content=ft.Column([
+                    display_name_tf,
+                    cats_title,
+                    cats_row,
+                    ft.Row([
+                        ft.Container(height=1, expand=True),
+                        ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600,
+                                       icon_size=32, on_click=add_tag),
+                    ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ], spacing=8),
+            ),
+            ft.Divider(height=1),
+            ft.Container(
+                padding=ft.Padding(left=20, right=20, top=8, bottom=8),
+                expand=True,
+                content=tag_list,
+            ),
+        ],
+    )
+
 
 # ============================================================
 # Top-level render dispatcher

@@ -88,6 +88,8 @@ def view_add_item(page: ft.Page):
         else:
             sub_category_dd.visible = False
             sub_category_dd.value = None
+        state["selected_tags"] = []
+        _load_tags_for_category(selected_cat_name)
         page.update()
 
     category_dd.on_change = _on_category_select
@@ -113,6 +115,87 @@ def view_add_item(page: ft.Page):
 
     availability_switch.on_change = _on_availability_toggle
 
+    # ---- Tags section ----
+    state["selected_tags"] = []
+    _displayed_tags = []
+
+    tags_title = ft.Text("🏷️ Tags", size=13, weight=ft.FontWeight.W_600)
+    tag_dd = ft.Dropdown(
+        label="Add a tag",
+        options=[],
+        expand=True,
+    )
+    add_tag_btn = ft.IconButton(ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.GREEN_600,
+                                 icon_size=32)
+    selected_tags_row = ft.Row(wrap=True, spacing=6, run_spacing=4)
+
+    def _rebuild_available_tags_dd():
+        selected = set(state.get("selected_tags", []))
+        tag_dd.options = [
+            ft.dropdown.Option(t["name"], t.get("display_name", t["name"]))
+            for t in _displayed_tags
+            if t["name"] not in selected
+        ]
+        tag_dd.value = None
+
+    def _rebuild_selected_chips():
+        dn_map = {t["name"]: t.get("display_name", t["name"]) for t in _displayed_tags}
+        selected_tags_row.controls.clear()
+        for tag_name in state.get("selected_tags", []):
+            dn = dn_map.get(tag_name, tag_name)
+            def make_remove(tn):
+                def _h(e):
+                    _remove_tag(tn)
+                return _h
+            selected_tags_row.controls.append(ft.Container(
+                content=ft.Row([
+                    ft.Text(dn, size=12, color=ft.Colors.WHITE),
+                    ft.Icon(ft.Icons.CLOSE, size=14, color=ft.Colors.WHITE),
+                ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.Padding(left=10, right=6, top=4, bottom=4),
+                border_radius=16,
+                bgcolor=ft.Colors.INDIGO_400,
+                on_click=make_remove(tag_name),
+            ))
+        _rebuild_available_tags_dd()
+        page.update()
+
+    def _add_selected_tag(_):
+        tag_name = tag_dd.value
+        if not tag_name:
+            snack("Select a tag to add.", ft.Colors.RED_500)
+            return
+        selected = state.get("selected_tags", [])
+        if tag_name not in selected:
+            selected.append(tag_name)
+            state["selected_tags"] = selected
+        _rebuild_selected_chips()
+
+    add_tag_btn.on_click = _add_selected_tag
+
+    def _remove_tag(tag_name):
+        selected = state.get("selected_tags", [])
+        if tag_name in selected:
+            selected.remove(tag_name)
+            state["selected_tags"] = selected
+        _rebuild_selected_chips()
+
+    def _load_tags_for_category(cat_name):
+        if not cat_name:
+            _displayed_tags.clear()
+            selected_tags_row.controls.clear()
+            tag_dd.options = []
+            tag_dd.value = None
+            page.update()
+            return
+        all_tags = db.get_tag_master(active_only=True)
+        _displayed_tags.clear()
+        _displayed_tags.extend(
+            t for t in all_tags
+            if not t.get("categories") or cat_name in t["categories"]
+        )
+        _rebuild_selected_chips()
+
     preview_img = ft.Container(
         width=120, height=120,
         bgcolor=ft.Colors.GREY_200, border_radius=8,
@@ -132,6 +215,11 @@ def view_add_item(page: ft.Page):
             sub_category_dd.visible = False
             availability_switch.visible = False
             availability_switch.value = True
+            state["selected_tags"] = []
+            _displayed_tags.clear()
+            selected_tags_row.controls.clear()
+            tag_dd.options = []
+            tag_dd.value = None
             page.update()
             return
         existing = db.get_item_by_number(item_no)
@@ -155,6 +243,9 @@ def view_add_item(page: ft.Page):
             availability_switch.value = bool(existing.get("is_available", 1))
             has_sizes_switch.value = bool(existing.get("has_sizes", 0))
             has_color_switch.value = bool(existing.get("has_color", 0))
+            item_tags = existing.get("tags") or []
+            state["selected_tags"] = list(item_tags)
+            _load_tags_for_category(category_dd.value)
             if _is_valid_image(existing.get("image_url", "")):
                 preview_img.content = ft.Image(
                     src=existing["image_url"], width=120, height=120,
@@ -230,12 +321,16 @@ def view_add_item(page: ft.Page):
             if not db.update_item_properties(item_no, has_sizes_switch.value, has_color_switch.value):
                 snack("❌ Failed to save item — check network", ft.Colors.RED_400)
                 return
+            if not db.update_item_tags(item_no, state.get("selected_tags", [])):
+                snack("❌ Failed to save item — check network", ft.Colors.RED_400)
+                return
         else:
             if not db.add_rate_item(item_no, final_image_url, cp_val, sp_val,
                                     category=selected_category,
                                     sub_category=selected_sub_category,
                                     has_sizes=has_sizes_switch.value,
-                                    has_color=has_color_switch.value):
+                                    has_color=has_color_switch.value,
+                                    tags=state.get("selected_tags", [])):
                 snack("❌ Failed to save item — check network", ft.Colors.RED_400)
                 return
 
@@ -256,6 +351,11 @@ def view_add_item(page: ft.Page):
         availability_switch.visible = False
         availability_switch.value = True
         picked_path["value"] = ""
+        state["selected_tags"] = []
+        _displayed_tags.clear()
+        selected_tags_row.controls.clear()
+        tag_dd.options = []
+        tag_dd.value = None
 
         page.update()
 
@@ -274,6 +374,7 @@ def view_add_item(page: ft.Page):
                     ]),
                     availability_switch,
                     ft.Row([has_sizes_switch, has_color_switch], spacing=16),
+                    ft.Column([tags_title, ft.Row([tag_dd, add_tag_btn], spacing=4), selected_tags_row], spacing=4),
                     ft.Row(spacing=10, controls=[
                         preview_img,
                         ft.Column(width=120, spacing=8, controls=[

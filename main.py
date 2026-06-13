@@ -506,6 +506,7 @@ async def main(page: ft.Page):
         "manage_customers": "settings",
         "settings_margin": "settings",
         "settings_materials": "settings",
+        "tag_master": "settings",
         "karigar_slip": "order_detail",
         "production_checklist": "home",
         "sync_page": "settings",
@@ -964,6 +965,9 @@ async def main(page: ft.Page):
         elif cur == "settings_materials":
             appbar = build_app_bar("Material Master", show_back=True)
             body = v_settings.view_settings_materials(page)
+        elif cur == "tag_master":
+            appbar = build_app_bar("Tag Master", show_back=True)
+            body = v_settings.view_tag_master(page)
         elif cur == "karigar_slip":
             appbar = build_app_bar("Karigar Slip", show_back=True)
             body = v_orders.view_karigar_slip(page)

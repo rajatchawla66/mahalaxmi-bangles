@@ -230,6 +230,7 @@ def view_customer_dashboard(page: ft.Page):
         def on_cat_click(e, c=cat):
             state["customer_selected_category"] = c["name"].strip()
             state["customer_selected_subcategory"] = None
+            state["customer_selected_tag"] = None
             subs_str = c.get("sub_categories", "").strip()
             if subs_str:
                 state["customer_subcategories"] = [s.strip() for s in subs_str.split(",") if s.strip()]
@@ -532,20 +533,20 @@ def view_customer_items(page: ft.Page):
     state = page.state
     category = state.get("customer_selected_category")
     subcategory = state.get("customer_selected_subcategory")
+    state.setdefault("customer_selected_tag", None)
 
     if not category:
         page.go("customer_dashboard")
         return ft.Container()
 
-    # Lazy-load items for this category (cached for repeat opens)
     catalog, was_offline = _get_category_items(page, category)
 
-    items = []
+    all_items = []
     for it in catalog:
         if not subcategory or (it.get("sub_category") or "").strip() == subcategory.strip():
-            items.append(it)
+            all_items.append(it)
 
-    if not items and was_offline:
+    if not all_items and was_offline:
         def _reload_category(_):
             state["customer_category_cache"].pop(category, None)
             page.go("customer_items")
@@ -557,22 +558,94 @@ def view_customer_items(page: ft.Page):
             ],
         )
 
-    item_cards = []
-    for it in items:
-        def on_details(e, item=it):
-            state["customer_selected_item"] = item
-            page.go("item_detail")
-        item_cards.append(_build_item_card(it, on_details))
+    # ---- Extract unique tags from loaded items ----
+    tag_set = set()
+    for it in all_items:
+        for t in it.get("tags", []):
+            tag_set.add(t)
+    tag_slugs = sorted(tag_set)
 
-    return ft.ListView(
+    tag_row = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=8)
+    items_list = ft.ListView(
         expand=True,
         padding=ft.Padding(left=12, top=4, right=12, bottom=16),
         spacing=12,
-        controls=item_cards if item_cards else [
+    )
+
+    def _make_all_chip():
+        def _h(_):
+            state["customer_selected_tag"] = None
+            _rebuild_items()
+        return _h
+
+    def _make_tag_chip(slug):
+        def _h(_):
+            state["customer_selected_tag"] = slug
+            _rebuild_items()
+        return _h
+
+    def _rebuild_items():
+        tag = state.get("customer_selected_tag")
+
+        tag_row.controls.clear()
+        all_sel = tag is None
+        tag_row.controls.append(ft.Container(
+            content=ft.Text("All", size=13, weight=ft.FontWeight.W_500,
+                             color=ft.Colors.WHITE if all_sel else ft.Colors.BLACK87),
+            padding=ft.Padding(left=14, right=14, top=6, bottom=6),
+            border_radius=16,
+            bgcolor=ft.Colors.INDIGO_400 if all_sel else ft.Colors.GREY_200,
+            ink=True,
+            on_click=_make_all_chip(),
+        ))
+        for slug in tag_slugs:
+            dn = slug.replace("_", " ").title()
+            sel = slug == tag
+            tag_row.controls.append(ft.Container(
+                content=ft.Text(dn, size=13, weight=ft.FontWeight.W_500,
+                                 color=ft.Colors.WHITE if sel else ft.Colors.BLACK87),
+                padding=ft.Padding(left=14, right=14, top=6, bottom=6),
+                border_radius=16,
+                bgcolor=ft.Colors.INDIGO_400 if sel else ft.Colors.GREY_200,
+                ink=True,
+                on_click=_make_tag_chip(slug),
+            ))
+
+        if tag:
+            filtered = [it for it in all_items if tag in it.get("tags", [])]
+        else:
+            filtered = all_items
+
+        cards = []
+        for it in filtered:
+            def on_details(e, item=it):
+                state["customer_selected_item"] = item
+                page.go("item_detail")
+            cards.append(_build_item_card(it, on_details))
+
+        items_list.controls = cards if cards else [
             ft.Container(
                 expand=True, padding=40, alignment=ft.alignment.center,
-                content=ft.Text("No items found", color=ft.Colors.GREY_500),
+                content=ft.Column([
+                    ft.Icon(ft.Icons.SEARCH_OFF, size=60, color=ft.Colors.GREY_300),
+                    ft.Text("No items found for this filter", color=ft.Colors.GREY_600),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
             ),
+        ]
+        page.update()
+
+    _rebuild_items()
+
+    return ft.Column(
+        expand=True, spacing=0,
+        controls=[
+            connectivity_banner(),
+            ft.Container(
+                content=tag_row,
+                height=52,
+                padding=ft.Padding(left=12, top=8, right=12, bottom=0),
+            ),
+            items_list,
         ],
     )
 

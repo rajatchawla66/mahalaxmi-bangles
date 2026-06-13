@@ -620,11 +620,11 @@ def view_tag_master(page: ft.Page):
                 ink=True,
                 on_click=lambda e, cn=c: _toggle_cat_chip(cn),
             ))
-        cats_row.update()
 
     def _select_global():
         _selected_categories.clear()
         _rebuild_cats_chips()
+        cats_row.update()
 
     def _toggle_cat_chip(cat_name):
         if cat_name in _selected_categories:
@@ -632,6 +632,7 @@ def view_tag_master(page: ft.Page):
         else:
             _selected_categories.append(cat_name)
         _rebuild_cats_chips()
+        cats_row.update()
 
     _rebuild_cats_chips()
 
@@ -682,7 +683,7 @@ def view_tag_master(page: ft.Page):
                                 border_radius=16,
                                 bgcolor=ft.Colors.INDIGO_400 if is_global else ft.Colors.GREY_200,
                                 ink=True,
-                                on_click=lambda _: (_set_global_edit(), _rebuild_edit_chips()),
+                                on_click=lambda _: (_set_global_edit(), _rebuild_edit_chips(), edit_cats_row.update()),
                             ))
                             for c in edit_all_cats:
                                 sel = c in edit_cats
@@ -694,9 +695,8 @@ def view_tag_master(page: ft.Page):
                                     border_radius=16,
                                     bgcolor=bg,
                                     ink=True,
-                                    on_click=lambda e, cn=c: (_toggle_edit_cat(cn), _rebuild_edit_chips()),
+                                    on_click=lambda e, cn=c: (_toggle_edit_cat(cn), _rebuild_edit_chips(), edit_cats_row.update()),
                                 ))
-                            edit_cats_row.update()
 
                         def _set_global_edit():
                             edit_cats.clear()

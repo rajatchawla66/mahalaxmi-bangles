@@ -620,6 +620,7 @@ def view_tag_master(page: ft.Page):
                 ink=True,
                 on_click=lambda e, cn=c: _toggle_cat_chip(cn),
             ))
+        cats_row.update()
 
     def _select_global():
         _selected_categories.clear()
@@ -695,6 +696,7 @@ def view_tag_master(page: ft.Page):
                                     ink=True,
                                     on_click=lambda e, cn=c: (_toggle_edit_cat(cn), _rebuild_edit_chips()),
                                 ))
+                            edit_cats_row.update()
 
                         def _set_global_edit():
                             edit_cats.clear()
@@ -817,14 +819,14 @@ def view_tag_master(page: ft.Page):
                     )
 
                 actions_row = ft.Row([
-                    ft.TextButton("✏️ Edit", on_click=make_edit(tid, tag_name, display_name, cats, is_active), height=30),
+                    ft.TextButton("✏️ Edit", on_click=make_edit(tid, tag_name, display_name, cats, is_active)),
                     ft.TextButton("🗑️ Delete", on_click=make_delete(tid, display_name),
-                                   height=30, style=ft.ButtonStyle(color=ft.Colors.RED_600)),
+                                   style=ft.ButtonStyle(color=ft.Colors.RED_600)),
                 ], spacing=4)
 
                 tag_list.controls.append(
                     ft.Container(
-                        padding=ft.Padding(left=14, right=10, top=10, bottom=6),
+                        padding=ft.Padding(left=14, right=10, top=10, bottom=10),
                         border_radius=10,
                         border=ft.border.all(1, ft.Colors.GREY_200),
                         bgcolor=ft.Colors.WHITE,

@@ -22,26 +22,6 @@ dist/
 # --- Flutter SDK (vendored — do not track) ---
 /flutter/
 
-# --- Legacy Flet (Python) — runtime artifacts ---
-legacy_flet_app/venv/
-legacy_flet_app/build/
-legacy_flet_app/__pycache__/
-legacy_flet_app/.kiro/
-legacy_flet_app/.streamlit/
-legacy_flet_app/cache/
-legacy_flet_app/product_images/
-legacy_flet_app/generated_cards/
-legacy_flet_app/item_images/
-legacy_flet_app/storage/
-legacy_flet_app/release-signing-backup/
-legacy_flet_app/chuda_business.db
-legacy_flet_app/ci_runs.json
-legacy_flet_app/customer_session.json
-legacy_flet_app/slip_23.pdf
-legacy_flet_app/zip_log.txt
-legacy_flet_app/filtered_log.txt
-legacy_flet_app/*.log
-
 # --- Legacy artifacts moved into _leftover/ ---
 _leftover/
 

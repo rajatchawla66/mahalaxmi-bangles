@@ -5,17 +5,6 @@
 ```
 workspace/                          # C:\Users\rajat\Labour-receipt
 │
-├── legacy_flet_app/                # FROZEN — Flet reference implementation
-│   ├── main.py                     # Entry point (Python/Flet)
-│   ├── db.py                       # Supabase database layer
-│   ├── views/                      # Flet UI views (customer, pricing, orders, settings, ...)
-│   ├── assets/                     # Fonts (HindiFont.ttf), icons, watermarks
-│   ├── sql/                        # SQL migrations (tags, categories, production status, ...)
-│   ├── android/                    # Flet-embedded Android APK build files
-│   ├── .github/workflows/          # GitHub Actions CI (Flet APK build)
-│   ├── *.md                        # Architecture docs, project memory, audits
-│   └── mahalaxmi_flet_backup_*.zip # Full source backup
-│
 ├── mahalaxmi_shared/               # Shared Dart package
 │   ├── lib/
 │   │   ├── models/                 # Freezed data models
@@ -62,7 +51,6 @@ workspace/                          # C:\Users\rajat\Labour-receipt
 
 | Project | Type | Platform | Purpose |
 |---------|------|----------|---------|
-| `legacy_flet_app/` | Python/Flet (frozen) | Android APK | Reference implementation — do NOT modify |
 | `mahalaxmi_shared/` | Dart package | — | Shared models, repositories, services, widgets, theme |
 | `mahalaxmi_customer/` | Flutter app | Android APK (primary), Web/PWA (iPhone fallback) | Customer catalogue, tag filter, cart, order placement |
 | `mahalaxmi_admin/` | Flutter app | Android APK | Inventory, pricing, order management, settings |
@@ -141,14 +129,12 @@ Two separate Flutter projects because:
 
 ## Rules for Future Development
 
-1. **Flet is frozen** — no new features in `legacy_flet_app/`. Only critical bug fixes if the Flutter migration is blocked by a production issue.
-2. **Supabase schema is immutable** — the Flutter app must work with the current schema. Schema changes are a separate, independent process.
-3. **Shared package first** — always implement shared logic (models, repositories) in `mahalaxmi_shared` before using it in either app.
-4. **No feature work before foundation** — do not build UI screens until the shared package provides the required models/repositories/providers.
-5. **Each app is independently buildable** — `mahalaxmi_customer` and `mahalaxmi_admin` must each be able to `flutter build` without the other present.
-6. **No hardcoded secrets** — Supabase URL and anon key must use `--dart-define` or environment variables, never committed to source.
-7. **Do NOT use `flutter create` inside existing projects** — the platform directories (android/, ios/, web/) must be generated once via `flutter create --project-name mahalaxmi_customer` when Flutter SDK is first set up.
-8. **Keep the legacy reference alive** — `legacy_flet_app/` is the source of truth for business logic until the Flutter implementation is verified in production.
+1. **Supabase schema is immutable** — the Flutter app must work with the current schema. Schema changes are a separate, independent process.
+2. **Shared package first** — always implement shared logic (models, repositories) in `mahalaxmi_shared` before using it in either app.
+3. **No feature work before foundation** — do not build UI screens until the shared package provides the required models/repositories/providers.
+4. **Each app is independently buildable** — `mahalaxmi_customer` and `mahalaxmi_admin` must each be able to `flutter build` without the other present.
+5. **No hardcoded secrets** — Supabase URL and anon key must use `--dart-define` or environment variables, never committed to source.
+6. **Do NOT use `flutter create` inside existing projects** — the platform directories (android/, ios/, web/) must be generated once via `flutter create --project-name mahalaxmi_customer` when Flutter SDK is first set up.
 
 ---
 

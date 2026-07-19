@@ -1,6 +1,6 @@
 # EXPECTED FLUTTER FEATURES — Feature-Parity Checklist
 
-> **Source:** Flet v1 (`legacy_flet_app/`)
+> **Source:** Flet v1 (archived — legacy app deleted 2026-07-19)
 > **Target:** Flutter (Dart) — `mahalaxmi_customer/`, `mahalaxmi_admin/`, `mahalaxmi_shared/`
 > **Database:** Supabase (unchanged schema — see §Migration-Critical Business Rules)
 > **Date:** 2026-06-13

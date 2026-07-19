@@ -26,7 +26,7 @@
 ├── mahalaxmi_shared/       — Shared Dart package
 ├── migration_docs/          — SQL migrations, audit docs, context files
 ├── assets/                  — Shared assets (watermark.png, app_icon.png)
-├── legacy_flet_app/         — Old Flet Python app (reference only)
+├── legacy_flet_app/         — Deleted 2026-07-19 (Flutter migration complete)
 └── CONTEXT.md               — This file (essential context)
 ```
 

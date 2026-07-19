@@ -32,7 +32,7 @@
 - **Labour app:** Beta. Cutmail/stock-check creation only. No session auth guard yet.
 - **Web apps:** Customer live at `https://app.mahalaxmibangles.com`. Admin web at `https://admin.mahalaxmibangles.com` (behind Cloudflare Access — owner email only). Supabase Auth/RLS hardening pending.
 - **Play Store:** Not yet published.
-- **iOS (Admin):** Platform scaffolded, Info.plist permissions added, custom MethodChannel implemented in Swift. Ready for cloud build via Codemagic/GitHub Actions. See `iOS_Migration_Plan.md` and `migration_docs/context/09_ios_migration.md`.
+- **iOS (Admin):** GitHub Actions CI produces unsigned IPA (`flutter build ios --release --no-codesign`). Native MethodChannel implemented (merged into `AppDelegate.swift`). Requires `SUPABASE_URL` and `SUPABASE_ANON_KEY` secrets set in repo. See `iOS_Migration_Plan.md` and `migration_docs/context/09_ios_migration.md`.
 
 ## Critical Guardrails
 
@@ -118,13 +118,31 @@ cd mahalaxmi_admin && flutter build ios --release --no-codesign --dart-define-fr
 ## Session — 2026-07-19
 
 ### Done
-1. **iOS IPA readiness audit** — Comprehensive audit of dependencies, Cupertino compatibility, Info.plist permissions, native code, file I/O sandboxing. Full report in `iOS_Migration_Plan.md`.
-2. **iOS platform directory scaffolded** — `flutter create --platforms=ios .` generated 40 files (`AppDelegate.swift`, `Info.plist`, Xcode project, storyboards, assets, tests).
-3. **Info.plist permission strings added** — `NSPhotoLibraryUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription` required by `image_picker` and `share_plus`.
-4. **Custom MethodChannel implemented in Swift** — `FilePickerPlugin.swift` with `UIDocumentPickerViewController` for "Browse Files" functionality. Registered in `AppDelegate.swift` via `didInitializeImplicitFlutterEngine`.
-5. **App icons enabled for iOS** — `pubspec.yaml`: `ios: true`, ran `flutter_launcher_icons` to generate icon set in `Assets.xcassets/AppIcon.appiconset/`.
-6. **CI/CD pipeline defined** — Codemagic YAML and GitHub Actions workflow in `iOS_Migration_Plan.md` for cloud build on macOS runners.
+1. **iOS platform directory scaffolded** — `flutter create --platforms=ios .` generated 40 files (`AppDelegate.swift`, `Info.plist`, Xcode project, storyboards, assets, tests).
+2. **Info.plist permission strings added** — `NSPhotoLibraryUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription` required by `image_picker` and `share_plus`.
+3. **FilePickerPlugin merged into AppDelegate.swift** — Avoids Xcode build phase registration issue; uses `registrar(forPlugin:)` to convert `FlutterPluginRegistry` → `FlutterPluginRegistrar`.
+4. **App icons enabled for iOS** — `pubspec.yaml`: `ios: true`, ran `flutter_launcher_icons` to generate icon set.
+5. **GitHub Actions CI iterated** — `.github/workflows/ios_build.yml`:
+   - Writes `.env` from `${{ secrets.SUPABASE_URL }}` / `${{ secrets.SUPABASE_ANON_KEY }}`
+   - Runs `flutter pub get`, `pod install`, generates icons, builds unsigned IPA, packages as `.ipa`, uploads as artifact
+6. **Root gitignore fix** — `flutter/` → `/flutter/` to stop matching `ios/Flutter/` case-insensitively. `AppFrameworkInfo.plist`, `Debug.xcconfig`, `Release.xcconfig` force-added to git.
+7. **Unsigned IPA built successfully** — Confirmed via GitHub Actions CI.
 
 ### Pending
-- Cloud build test on Codemagic / GitHub Actions (requires macOS runner)
+- Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as repo secrets for CI to work at runtime
 - Phase 2 platform polish (adaptive transitions, dialogs, bottom nav) — see `iOS_Migration_Plan.md`
+
+## Session — 2026-07-19 (2)
+
+### Done
+1. **Legacy Flet app deleted** — `legacy_flet_app/` directory (30 entries) removed from repo.
+2. **`.gitignore` cleaned** — Removed 18 stale `legacy_flet_app/` exclusion lines.
+3. **`migration_docs/CONTEXT.md` deleted** — 904-line outdated migration plan (Flutter migration complete).
+4. **`FLUTTER_WORKSPACE_README.md` updated** — Removed legacy directory tree, purpose table row, and 2 frozen-Flet rules.
+5. **`EXPECTED_FLUTTER_FEATURES_FROM_FLET.md` header updated** — Source note changed to "archived — legacy app deleted".
+6. **`migration_docs/context/01_project_overview.md` updated** — One stale directory-tree reference marked as deleted.
+7. **`migration_docs/security_audit_2026-07-19.md` updated** — Two legacy file references removed.
+
+### Pending
+- No legacy cleanup remains. Only 1 `legacy_flet_app` mention left in repo — a historical note in `migration_docs/context/01_project_overview.md`.
+- Security fixes from audit (separate session).

@@ -14,7 +14,8 @@ import UniformTypeIdentifiers
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if #available(iOS 14.0, *) {
-      FilePickerPlugin.register(with: engineBridge.pluginRegistry)
+      let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "FilePickerPlugin")!
+      FilePickerPlugin.register(with: registrar)
     }
   }
 }

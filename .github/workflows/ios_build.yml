@@ -6,9 +6,6 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: mahalaxmi_admin
 
     steps:
       - uses: actions/checkout@v4
@@ -18,28 +15,30 @@ jobs:
           channel: 'stable'
 
       - name: Create iOS platform
-        run: flutter create --platforms=ios . --project-name mahalaxmi_admin
+        run: cd mahalaxmi_admin && flutter create --platforms=ios . --project-name mahalaxmi_admin
 
       - name: Install dependencies
-        run: flutter pub get
+        run: cd mahalaxmi_admin && flutter pub get
 
       - name: Generate app icons
-        run: flutter pub run flutter_launcher_icons
+        run: cd mahalaxmi_admin && flutter pub run flutter_launcher_icons
 
       - name: Install CocoaPods
         run: |
+          cd mahalaxmi_admin
           gem install cocoapods
           cd ios && pod install --repo-update
 
       - name: Build unsigned IPA
         run: |
+          cd mahalaxmi_admin
           flutter build ios --release --no-codesign \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Package into IPA
         run: |
-          cd build/ios/iphoneos && mkdir Payload && mv Runner.app Payload/ && zip -r admin_unsigned.ipa Payload/
+          cd mahalaxmi_admin/build/ios/iphoneos && mkdir -p Payload && mv Runner.app Payload/ && zip -r admin_unsigned.ipa Payload/
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

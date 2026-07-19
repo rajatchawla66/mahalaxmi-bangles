@@ -1,21 +1,74 @@
-venv/
+# =============================================================================
+# Mahalaxmi Workspace — Root .gitignore
+# =============================================================================
+
+# --- Flutter / Dart ---
+**/build/
+**/.dart_tool/
+**/.packages
+**/.pub/
+**/pubspec.lock
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+dart_tool/
+.packages
+.pub/
+.pub-cache/
 build/
-product_images/
-generated_cards/
-item_images/
-storage/
-cache/
-scratch/
-__pycache__/
-*.pdf
-*.log
-*.db
-*.txt
-!version.txt
-customer_session.json
-ci_runs.json
-.flet/
-.streamlit/
-*.keystore
-*.jks
-release-signing-backup/
+dist/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# --- Flutter SDK (vendored — do not track) ---
+flutter/
+
+# --- Legacy Flet (Python) — runtime artifacts ---
+legacy_flet_app/venv/
+legacy_flet_app/build/
+legacy_flet_app/__pycache__/
+legacy_flet_app/.kiro/
+legacy_flet_app/.streamlit/
+legacy_flet_app/cache/
+legacy_flet_app/product_images/
+legacy_flet_app/generated_cards/
+legacy_flet_app/item_images/
+legacy_flet_app/storage/
+legacy_flet_app/release-signing-backup/
+legacy_flet_app/chuda_business.db
+legacy_flet_app/ci_runs.json
+legacy_flet_app/customer_session.json
+legacy_flet_app/slip_23.pdf
+legacy_flet_app/zip_log.txt
+legacy_flet_app/filtered_log.txt
+legacy_flet_app/*.log
+
+# --- Legacy artifacts moved into _leftover/ ---
+_leftover/
+
+# --- Android / Gradle ---
+android/.gradle/
+android/build/
+*.apk
+*.aab
+
+# --- iOS ---
+**/ios/Pods/
+**/ios/.symlinks/
+
+# --- Web ---
+web/build/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# --- Environment / Secrets ---
+.env
+*.env
+
+# --- OS ---
+.DS_Store
+Thumbs.db

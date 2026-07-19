@@ -1,0 +1,53 @@
+name: mahalaxmi_customer
+description: Mahalaxmi Customer App — catalogue browsing, tag filtering, cart, and order placement
+publish_to: none
+version: 0.1.0+2
+
+environment:
+  sdk: ^3.2.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.0
+  riverpod_annotation: ^2.6.0
+  go_router: ^14.6.0
+  supabase_flutter: ^2.8.0
+  mahalaxmi_shared:
+    path: ../mahalaxmi_shared
+  intl: ^0.20.0
+  printing: ^5.11.0
+  cached_network_image: ^3.4.0
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  riverpod_generator: ^2.6.0
+  build_runner: ^2.4.0
+  flutter_launcher_icons: ^0.14.0
+  flutter_native_splash: ^2.4.0
+
+flutter_launcher_icons:
+  android: true
+  remove_alpha_ios: false
+  image_path: assets/app_icon.png
+  adaptive_icon_background: '#FFFFFF'
+  adaptive_icon_foreground: assets/app_icon.png
+  adaptive_icon_padding: true
+
+flutter_native_splash:
+  image: assets/app_icon.png
+  color: '#FFFFFF'
+  android: true
+  ios: false
+  web: false
+  android_12:
+    image: assets/app_icon.png
+    color: '#FFFFFF'
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

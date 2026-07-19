@@ -70,15 +70,18 @@ jobs:
           flutter precache --ios
           cd ios && pod install --repo-update
 
+      - name: Create .env from secrets
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > mahalaxmi_admin/.env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> mahalaxmi_admin/.env
+
       - name: Generate app icons
         run: cd mahalaxmi_admin && flutter pub run flutter_launcher_icons
 
       - name: Build unsigned IPA
         run: |
           cd mahalaxmi_admin
-          flutter build ios --release --no-codesign \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          flutter build ios --release --no-codesign --dart-define-from-file=.env
 
       - name: Package into IPA
         run: |

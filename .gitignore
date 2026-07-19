@@ -20,7 +20,7 @@ dist/
 .flutter-plugins-dependencies
 
 # --- Flutter SDK (vendored — do not track) ---
-flutter/
+/flutter/
 
 # --- Legacy Flet (Python) — runtime artifacts ---
 legacy_flet_app/venv/

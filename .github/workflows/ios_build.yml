@@ -14,10 +14,7 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create iOS platform
-        run: cd mahalaxmi_admin && flutter create --platforms=ios . --project-name mahalaxmi_admin
-
-      - name: Install dependencies
+      - name: Install Flutter dependencies
         run: cd mahalaxmi_admin && flutter pub get
 
       - name: Generate app icons
@@ -25,8 +22,13 @@ jobs:
 
       - name: Install CocoaPods
         run: |
-          cd mahalaxmi_admin
           gem install cocoapods
+          cd mahalaxmi_admin
+          # Podfile was not generated on Windows — create it if missing
+          if [ ! -f ios/Podfile ]; then
+            flutter precache --ios
+            flutter pub get
+          fi
           cd ios && pod install --repo-update
 
       - name: Build unsigned IPA

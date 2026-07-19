@@ -1,0 +1,49 @@
+name: Build iOS Admin (Unsigned IPA)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mahalaxmi_admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+
+      - name: Create iOS platform
+        run: flutter create --platforms=ios . --project-name mahalaxmi_admin
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate app icons
+        run: flutter pub run flutter_launcher_icons
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods
+          cd ios && pod install --repo-update
+
+      - name: Build unsigned IPA
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Package into IPA
+        run: |
+          cd build/ios/iphoneos && mkdir Payload && mv Runner.app Payload/ && zip -r admin_unsigned.ipa Payload/
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin_unsigned.ipa
+          path: mahalaxmi_admin/build/ios/iphoneos/admin_unsigned.ipa

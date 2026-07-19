@@ -24,55 +24,48 @@ jobs:
         run: |
           gem install cocoapods
           cd mahalaxmi_admin
-          # Podfile was not generated on Windows — create it if missing
           if [ ! -f ios/Podfile ]; then
-            cat > ios/Podfile << 'PODFILE_EOF'
-# Uncomment the next line to define a global platform for your project
-platform :ios, '13.0'
-
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
-}
-
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  end
-
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure \"flutter pub get\" is executed first"
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_ROOT\=(.*)/)
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Flutter/Generated.xcconfig, then run flutter pub get"
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-
-flutter_ios_podfile_setup
-
-target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
-
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-end
-
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
-  end
-end
-PODFILE_EOF
+            echo "Creating Podfile (was not generated on Windows host)..."
+            echo 'platform :ios, "13.0"' > ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'ENV["COCOAPODS_DISABLE_STATS"] = "true"' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'project "Runner", {' >> ios/Podfile
+            echo '  "Debug" => :debug,' >> ios/Podfile
+            echo '  "Profile" => :release,' >> ios/Podfile
+            echo '  "Release" => :release,' >> ios/Podfile
+            echo '}' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'def flutter_root' >> ios/Podfile
+            echo '  generated_xcode_build_settings_path = File.expand_path(File.join("..", "Flutter", "Generated.xcconfig"), __FILE__)' >> ios/Podfile
+            echo '  unless File.exist?(generated_xcode_build_settings_path)' >> ios/Podfile
+            echo '    generated_xcode_build_settings_path = File.expand_path(File.join("..", "Flutter", "ephemeral", "Flutter-Generated.xcconfig"), __FILE__)' >> ios/Podfile
+            echo '  end' >> ios/Podfile
+            echo '  unless File.exist?(generated_xcode_build_settings_path)' >> ios/Podfile
+            echo '    raise "#{generated_xcode_build_settings_path} must exist. If you are running pod install manually, make sure \"flutter pub get\" is executed first"' >> ios/Podfile
+            echo '  end' >> ios/Podfile
+            echo '  File.foreach(generated_xcode_build_settings_path) do |line|' >> ios/Podfile
+            echo '    matches = line.match(/FLUTTER_ROOT\\=(.*)/)' >> ios/Podfile
+            echo '    return matches[1].strip if matches' >> ios/Podfile
+            echo '  end' >> ios/Podfile
+            echo '  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Flutter/Generated.xcconfig, then run flutter pub get"' >> ios/Podfile
+            echo 'end' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'require File.expand_path(File.join("packages", "flutter_tools", "bin", "podhelper"), flutter_root)' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'flutter_ios_podfile_setup' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'target "Runner" do' >> ios/Podfile
+            echo '  use_frameworks!' >> ios/Podfile
+            echo '  use_modular_headers!' >> ios/Podfile
+            echo '  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))' >> ios/Podfile
+            echo 'end' >> ios/Podfile
+            echo "" >> ios/Podfile
+            echo 'post_install do |installer|' >> ios/Podfile
+            echo '  installer.pods_project.targets.each do |target|' >> ios/Podfile
+            echo '    flutter_additional_ios_build_settings(target)' >> ios/Podfile
+            echo '  end' >> ios/Podfile
+            echo 'end' >> ios/Podfile
           fi
           cd ios && pod install --repo-update
 

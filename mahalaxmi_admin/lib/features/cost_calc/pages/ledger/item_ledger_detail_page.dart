@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mahalaxmi_shared/providers/ledger_providers.dart';
 
-class ItemLedgerDetailPage extends ConsumerWidget {
+class ItemLedgerDetailPage extends ConsumerStatefulWidget {
   final String source;
   final String id;
   final String name;
@@ -15,19 +16,51 @@ class ItemLedgerDetailPage extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ItemLedgerDetailPage> createState() =>
+      _ItemLedgerDetailPageState();
+}
+
+class _ItemLedgerDetailPageState extends ConsumerState<ItemLedgerDetailPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.source == 'rate_list') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _redirectToEdit();
+      });
+    }
+  }
+
+  void _redirectToEdit() {
+    final allItemsAsync = ref.read(allLedgerItemsProvider);
+    allItemsAsync.whenData((allItems) {
+      final item = allItems.where((i) => i.id == widget.id).firstOrNull;
+      if (item != null && item.category != null && item.itemNumber != null) {
+        context.push(
+          '/catalogue/${Uri.encodeComponent(item.category!)}/edit/${Uri.encodeComponent(item.itemNumber!)}',
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.source == 'rate_list') {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final allItemsAsync = ref.watch(allLedgerItemsProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
+      appBar: AppBar(title: Text(widget.name)),
       body: allItemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Text('Error: $err'),
-        ),
+        error: (err, _) => Center(child: Text('Error: $err')),
         data: (allItems) {
-          final item = allItems.where((i) => i.id == id).firstOrNull;
+          final item = allItems.where((i) => i.id == widget.id).firstOrNull;
           if (item == null) {
             return const Center(child: Text('Item not found'));
           }
@@ -39,25 +72,6 @@ class ItemLedgerDetailPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.network(
-                      item.imageUrl!,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 200,
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: Icon(Icons.image, size: 48,
-                              color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 12),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -65,26 +79,26 @@ class ItemLedgerDetailPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _DetailRow(label: 'Name', value: item.name),
-                        if (item.itemNumber != null)
-                          _DetailRow(
-                              label: 'Item #', value: item.itemNumber!),
                         if (item.category != null)
                           _DetailRow(
                               label: 'Category', value: item.category!),
                         _DetailRow(
-                            label: 'Vendor',
-                            value: item.vendor.isNotEmpty
-                                ? item.vendor
-                                : '—'),
+                          label: 'Vendor',
+                          value: item.vendor.isNotEmpty
+                              ? item.vendor
+                              : '—',
+                        ),
                         const Divider(height: 24),
                         _DetailRow(
-                            label: 'Cost Price',
-                            value:
-                                '₹${item.costPrice.toStringAsFixed(2)}'),
+                          label: 'Cost Price',
+                          value:
+                              '₹${item.costPrice.toStringAsFixed(2)}',
+                        ),
                         _DetailRow(
-                            label: 'Selling Price',
-                            value:
-                                '₹${item.sellingPrice.toStringAsFixed(2)}'),
+                          label: 'Selling Price',
+                          value:
+                              '₹${item.sellingPrice.toStringAsFixed(2)}',
+                        ),
                         _DetailRow(
                           label: 'Margin',
                           value: '$marginStr%',
@@ -93,29 +107,16 @@ class ItemLedgerDetailPage extends ConsumerWidget {
                               : Colors.red.shade700,
                         ),
                         if (item.notes != null && item.notes!.isNotEmpty)
-                          _DetailRow(label: 'Notes', value: item.notes!),
+                          _DetailRow(
+                              label: 'Notes', value: item.notes!),
                         const Divider(height: 24),
                         _DetailRow(
-                            label: 'Source',
-                            value: item.source == 'rate_list'
-                                ? 'Catalogue'
-                                : 'One-off Record'),
+                          label: 'Source',
+                          value: 'One-off Record'),
                       ],
                     ),
                   ),
                 ),
-                if (item.source == 'rate_list')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.calculate),
-                        label: const Text('View Cost Calculation'),
-                      ),
-                    ),
-                  ),
               ],
             ),
           );

@@ -494,7 +494,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              context.go('/orders');
+              context.pop();
             },
             child: const Text('Back to Orders'),
           ),

@@ -21,7 +21,9 @@ const _tabs = [
 ];
 
 class OrdersPage extends ConsumerStatefulWidget {
-  const OrdersPage({super.key});
+  final String? initialStatus;
+
+  const OrdersPage({super.key, this.initialStatus});
 
   @override
   ConsumerState<OrdersPage> createState() => _OrdersPageState();
@@ -35,6 +37,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    if (widget.initialStatus != null) {
+      final idx = _tabs.indexWhere((t) => t.statusFilter == widget.initialStatus);
+      if (idx > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _tabController.animateTo(idx);
+        });
+      }
+    }
   }
 
   @override

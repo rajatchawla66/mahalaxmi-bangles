@@ -98,6 +98,33 @@
 | `is_default` | bool | Auto-selected |
 | `is_active` | bool | |
 
+### `vendor_master`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigserial PK | Returns as String from PostgREST (bigint) |
+| `name` | text | Vendor display name |
+| `is_active` | bool | Inactive vendors hidden from dropdowns |
+
+### `vendor_prices`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | text PK | UUID |
+| `item_name` | text | |
+| `category` | text | Required — must match `categories.name` |
+| `vendor_name` | text | FK-like to `vendor_master.name` |
+| `cost_price` | numeric | |
+| `selling_price` | numeric | |
+| `margin_type` | text | `percent` or `flat` |
+| `margin_value` | numeric | |
+| `notes` | text | Optional |
+| `created_at` | timestamptz | |
+
+### `rate_list` — additional columns
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `vendor` | text | Vendor name assigned to catalogue item (FK-like to `vendor_master.name`). Nullable. |
+
 ### `tag_master`
 | Column | Type | Notes |
 |--------|------|-------|
@@ -112,7 +139,9 @@
 | `migration_docs/005_cutmail.sql` | `cutmails` + `cutmail_sizes` tables, indexes, RLS |
 | `migration_docs/006_soft_delete_orders.sql` | `deleted_at`/`deleted_by`/`delete_reason` on `orders`, indexes |
 
-Additional ad-hoc columns added manually: `available_sizes`, `qty_2_12`, `size_chart`, `sort_order`, `customization`.
+Additional ad-hoc columns added manually: `available_sizes`, `qty_2_12`, `size_chart`, `sort_order`, `customization`, `vendor` on `rate_list`.
+
+Tables added via Supabase SQL editor: `vendor_master` (2026-07-19), `vendor_prices` (2026-07-19).
 
 ## Supabase Notes
 

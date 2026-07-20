@@ -224,26 +224,48 @@ class _MainSummaryCards extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Text('Summary',
+          child: Text('Orders',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
         ),
         Row(
           children: [
             Expanded(
               child: _StatCard(
-                title: 'Pending Orders',
+                title: 'Pending',
                 value: '${data.pendingOrders}',
                 color: const Color(0xFFF9A825),
-                onTap: () => context.go('/orders'),
+                onTap: () => context.push('/orders?status=pending'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _StatCard(
-                title: 'Confirmed Orders',
+                title: 'Confirmed',
                 value: '${data.confirmedOrders}',
                 color: const Color(0xFF1565C0),
-                onTap: () => context.go('/orders'),
+                onTap: () => context.push('/orders?status=confirmed'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                title: 'Completed',
+                value: '${data.completedOrders}',
+                color: const Color(0xFF2E7D32),
+                onTap: () => context.push('/orders?status=completed'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatCard(
+                title: 'Cancelled',
+                value: '${data.cancelledOrders}',
+                color: const Color(0xFFC62828),
+                onTap: () => context.push('/orders?status=cancelled'),
               ),
             ),
           ],
@@ -384,10 +406,21 @@ class _RecentOrdersSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text('Recent Orders',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        InkWell(
+          onTap: () => context.push('/orders'),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Text('Recent Orders',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text('View All', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary)),
+                Icon(Icons.chevron_right, size: 16, color: Theme.of(context).colorScheme.primary),
+              ],
+            ),
+          ),
         ),
         if (data.recentOrders.isEmpty)
           const Padding(

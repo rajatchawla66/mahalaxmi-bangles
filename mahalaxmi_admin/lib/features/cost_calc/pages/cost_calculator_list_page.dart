@@ -40,6 +40,11 @@ class CostCalculatorListPage extends ConsumerWidget {
         title: const Text('Cost Calc'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'Ledger',
+            onPressed: () => context.push('/cost-calc/ledger'),
+          ),
+          IconButton(
             icon: const Icon(Icons.group_add_outlined),
             tooltip: 'Bulk Trading',
             onPressed: () => context.push('/cost-calc/bulk-trading'),

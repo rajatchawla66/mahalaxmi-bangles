@@ -43,6 +43,7 @@ mixin _$RateItem {
   List<String> get tags => throw _privateConstructorUsedError;
   @JsonKey(name: 'available_sizes')
   List<String>? get availableSizes => throw _privateConstructorUsedError;
+  String? get vendor => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
@@ -75,6 +76,7 @@ abstract class $RateItemCopyWith<$Res> {
       String status,
       List<String> tags,
       @JsonKey(name: 'available_sizes') List<String>? availableSizes,
+      String? vendor,
       @JsonKey(name: 'created_at') DateTime? createdAt});
 }
 
@@ -106,6 +108,7 @@ class _$RateItemCopyWithImpl<$Res, $Val extends RateItem>
     Object? status = null,
     Object? tags = null,
     Object? availableSizes = freezed,
+    Object? vendor = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(_value.copyWith(
@@ -161,6 +164,10 @@ class _$RateItemCopyWithImpl<$Res, $Val extends RateItem>
           ? _value.availableSizes
           : availableSizes // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      vendor: freezed == vendor
+          ? _value.vendor
+          : vendor // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -191,6 +198,7 @@ abstract class _$$RateItemImplCopyWith<$Res>
       String status,
       List<String> tags,
       @JsonKey(name: 'available_sizes') List<String>? availableSizes,
+      String? vendor,
       @JsonKey(name: 'created_at') DateTime? createdAt});
 }
 
@@ -220,6 +228,7 @@ class __$$RateItemImplCopyWithImpl<$Res>
     Object? status = null,
     Object? tags = null,
     Object? availableSizes = freezed,
+    Object? vendor = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(_$RateItemImpl(
@@ -275,6 +284,10 @@ class __$$RateItemImplCopyWithImpl<$Res>
           ? _value._availableSizes
           : availableSizes // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      vendor: freezed == vendor
+          ? _value.vendor
+          : vendor // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -300,6 +313,7 @@ class _$RateItemImpl implements _RateItem {
       this.status = 'new',
       final List<String> tags = const <String>[],
       @JsonKey(name: 'available_sizes') final List<String>? availableSizes,
+      this.vendor,
       @JsonKey(name: 'created_at') this.createdAt})
       : _tags = tags,
         _availableSizes = availableSizes;
@@ -360,12 +374,14 @@ class _$RateItemImpl implements _RateItem {
   }
 
   @override
+  final String? vendor;
+  @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'RateItem(itemNumber: $itemNumber, imageUrl: $imageUrl, costPrice: $costPrice, sellingPrice: $sellingPrice, category: $category, subCategory: $subCategory, hasSizes: $hasSizes, hasColor: $hasColor, isAvailable: $isAvailable, marginPercent: $marginPercent, status: $status, tags: $tags, availableSizes: $availableSizes, createdAt: $createdAt)';
+    return 'RateItem(itemNumber: $itemNumber, imageUrl: $imageUrl, costPrice: $costPrice, sellingPrice: $sellingPrice, category: $category, subCategory: $subCategory, hasSizes: $hasSizes, hasColor: $hasColor, isAvailable: $isAvailable, marginPercent: $marginPercent, status: $status, tags: $tags, availableSizes: $availableSizes, vendor: $vendor, createdAt: $createdAt)';
   }
 
   @override
@@ -397,6 +413,7 @@ class _$RateItemImpl implements _RateItem {
             const DeepCollectionEquality().equals(other._tags, _tags) &&
             const DeepCollectionEquality()
                 .equals(other._availableSizes, _availableSizes) &&
+            (identical(other.vendor, vendor) || other.vendor == vendor) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
@@ -418,6 +435,7 @@ class _$RateItemImpl implements _RateItem {
       status,
       const DeepCollectionEquality().hash(_tags),
       const DeepCollectionEquality().hash(_availableSizes),
+      vendor,
       createdAt);
 
   /// Create a copy of RateItem
@@ -451,6 +469,7 @@ abstract class _RateItem implements RateItem {
       final String status,
       final List<String> tags,
       @JsonKey(name: 'available_sizes') final List<String>? availableSizes,
+      final String? vendor,
       @JsonKey(name: 'created_at') final DateTime? createdAt}) = _$RateItemImpl;
 
   factory _RateItem.fromJson(Map<String, dynamic> json) =
@@ -492,6 +511,8 @@ abstract class _RateItem implements RateItem {
   @override
   @JsonKey(name: 'available_sizes')
   List<String>? get availableSizes;
+  @override
+  String? get vendor;
   @override
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;

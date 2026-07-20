@@ -121,3 +121,14 @@ Keypad digit buttons used plain black blocks, inconsistent with cream/gold login
 
 ### Fix
 Styled `_KeypadButton`: cream background, soft gold border, dark text. Clear/⌫: white background, maroon border/text.
+
+## Ledger Stale Cache — Vendor Not Showing After Catalogue Edit
+
+### Symptom
+Editing a catalogue item to assign a vendor did not appear in the Ledger Vendor tab.
+
+### Root Cause
+`add_item_page.dart` and `item_edit_page.dart` only invalidated catalogue-related providers after save/delete. The `allRateItemsProvider` (used by ledger) was never invalidated. Since `StatefulShellRoute.indexedStack` keeps all tab branches alive, the Cost Calc tab held stale cached data.
+
+### Fix
+Added `ref.invalidate(allRateItemsProvider)` after save/delete in both `add_item_page.dart` and `item_edit_page.dart`. The ledger providers depend on `allRateItemsProvider` so they refresh automatically on next read.

@@ -38,6 +38,12 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => context.push('/settings/tags'),
           ),
           _MenuItem(
+            icon: Icons.business_outlined,
+            title: 'Vendor Master',
+            subtitle: 'Manage vendor names',
+            onTap: () => context.push('/settings/vendors'),
+          ),
+          _MenuItem(
             icon: Icons.colorize_outlined,
             title: 'Chuda Customisation',
             subtitle: 'Manage patti, color & box options',

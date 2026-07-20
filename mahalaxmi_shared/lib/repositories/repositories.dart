@@ -9,3 +9,5 @@ export 'material_repository.dart';
 export 'settings_repository.dart';
 export 'chuda_customization_repository.dart';
 export 'cutmail_repository.dart';
+export 'vendor_repository.dart';
+export 'vendor_price_repository.dart';

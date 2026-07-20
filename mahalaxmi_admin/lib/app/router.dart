@@ -21,6 +21,7 @@ import '../features/customers/pages/customer_edit_page.dart';
 import '../features/customers/pages/customer_create_page.dart';
 import '../features/settings/pages/settings_page.dart';
 import '../features/settings/pages/manage_tags_page.dart';
+import '../features/settings/pages/manage_vendors_page.dart';
 import '../features/settings/pages/manage_categories_page.dart';
 import '../features/settings/pages/margin_settings_page.dart';
 import '../features/settings/pages/material_master_page.dart';
@@ -34,6 +35,11 @@ import '../features/cost_calc/pages/trading_cost_form_page.dart';
 import '../features/cost_calc/pages/bulk_trading_cost_page.dart';
 import '../features/cost_calc/pages/category_records_page.dart';
 import '../features/cost_calc/pages/material_settings_page.dart';
+import '../features/cost_calc/pages/ledger/ledger_page.dart';
+import '../features/cost_calc/pages/ledger/items_by_category_page.dart';
+import '../features/cost_calc/pages/ledger/items_by_vendor_page.dart';
+import '../features/cost_calc/pages/ledger/vendor_price_form_page.dart';
+import '../features/cost_calc/pages/ledger/bulk_vendor_price_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'adminRoot');
@@ -60,6 +66,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/orders',
+        name: 'ordersRoot',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final status = state.uri.queryParameters['status'];
+          return OrdersPage(initialStatus: status);
+        },
       ),
       GoRoute(
         path: '/orders/create',
@@ -130,6 +145,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = int.tryParse(state.pathParameters['customerId'] ?? '') ?? 0;
           return CustomerEditPage(customerId: id);
         },
+      ),
+      GoRoute(
+        path: '/settings/vendors',
+        name: 'settingsVendors',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ManageVendorsPage(),
       ),
       GoRoute(
         path: '/settings/tags',
@@ -245,6 +266,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const MaterialSettingsPage(),
       ),
+
+      // ---- Ledger routes ----
+      GoRoute(
+        path: '/cost-calc/ledger',
+        name: 'ledger',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LedgerPage(),
+      ),
+      GoRoute(
+        path: '/cost-calc/ledger/category/:name',
+        name: 'ledgerCategory',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          return ItemsByCategoryPage(categoryName: name);
+        },
+      ),
+      GoRoute(
+        path: '/cost-calc/ledger/vendor/:name',
+        name: 'ledgerVendor',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final name = Uri.decodeComponent(state.pathParameters['name'] ?? '');
+          return ItemsByVendorPage(vendorName: name);
+        },
+      ),
+      GoRoute(
+        path: '/cost-calc/ledger/add',
+        name: 'ledgerAddRecord',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const VendorPriceFormPage(),
+      ),
+      GoRoute(
+        path: '/cost-calc/ledger/bulk-add',
+        name: 'ledgerBulkAddRecord',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const BulkVendorPricePage(),
+      ),
+
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return _AdminShell(navigationShell: navigationShell);
@@ -262,9 +322,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/orders',
-                name: 'orders',
-                builder: (context, state) => const OrdersPage(),
+                path: '/ledger',
+                name: 'ledgerHome',
+                builder: (context, state) => const LedgerPage(),
               ),
             ],
           ),
@@ -380,9 +440,9 @@ class _AdminShellState extends State<_AdminShell> {
               label: 'Dashboard',
             ),
             NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Orders',
+              icon: Icon(Icons.book_outlined),
+              selectedIcon: Icon(Icons.book),
+              label: 'Ledger',
             ),
             NavigationDestination(
               icon: Icon(Icons.inventory_2_outlined),

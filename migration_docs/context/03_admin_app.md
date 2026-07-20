@@ -32,9 +32,9 @@
 
 - **Phase 1 redesign** (2026-07-05): Now a business overview with 6 sections
 - **Quick Actions:** 4 action cards — Create Order, Add Item, Add Customer, View Cutmail
-- **Main Summary Cards:** Pending Orders, Confirmed Orders, Pending Cutmail, Active Customers
+- **Main Summary Cards (orders):** 4 clickable status cards — Pending (→ `/orders?status=pending`), Confirmed, Completed, Cancelled, plus Pending Cutmail and Active Customers
 - **Needs Attention:** Alerts for items without price, categories missing cover, cutmails pending review, unavailable items
-- **Recent Orders:** Latest 5 orders with amount, tap to open detail
+- **Recent Orders:** Latest 5 orders with amount, tap to open detail; header is clickable "View All" → `/orders`
 - **Latest Cutmail:** Latest 5 cutmail reports, tap to open detail
 - **Catalogue Health:** Total/available/unavailable items, categories, customers, active customers
 - **Data source:** Combined `adminDashboardDataProvider` (reads from 6 existing providers in parallel via `Future.wait`)
@@ -44,7 +44,8 @@
 
 ## Orders
 
-- **Active orders:** Filterable list (All/Pending/Confirmed/Completed/Cancelled)
+- **Removed from bottom nav** (2026-07-19): Orders tab replaced by Ledger. `/orders` moved to `_rootNavigatorKey` (full-screen push from dashboard/quick actions).
+- **Active orders:** Filterable list (All/Pending/Confirmed/Completed/Cancelled). `OrdersPage` accepts `initialStatus` query param to auto-select tab.
 - **Create order:** Manual order creation with item picker, size/quantity input, Chuda customization support
 - **Archive orders:** Tabbed list (All/Completed/Cancelled) — status-based archive
 - **Soft delete:** Archived orders (completed/cancelled) can be soft-deleted with `deleted_at`/`deleted_by`/`delete_reason`
@@ -91,8 +92,22 @@
 
 - **Manage Categories:** Create/edit/delete, size chart chip selector, sort order (▲/▼ Move Up/Move Down)
 - **Tag Master:** Create/edit/delete tags
+- **Vendor Master:** Create/rename/activate/deactivate vendors (sourced from `vendor_master` table)
 - **Cutmail:** View/edit/review/archive stock-check entries
 - **Archive Orders:** Tabbed archive order list
+- **Default Margin:** Set default profit margin type (percent/flat) and value
+- **Material Master:** Manage materials list for cost calculation
+
+## Trading Ledger
+
+- **Bottom nav tab** (replaces Orders since 2026-07-19): Category/Vendor tab toggle, FAB with "Single Record" / "Bulk Entry" choice
+- **Category tab:** Lists all categories from `rate_list` + `vendor_prices`; tap → items with CP/SP/Margin, tap → full detail
+- **Vendor tab:** Lists all vendors from `rate_list.vendor` + `vendor_prices.vendor_name`; tap → items by vendor
+- **Item detail:** Full item info with image, cost breakdown link for manufactured items
+- **Add single record:** `VendorPriceFormPage` — item name, required category (dropdown), required vendor (dropdown), cost/sell price, margin %/flat, notes
+- **Bulk entry:** `BulkVendorPricePage` — row count dialog, dynamic rows with item name/cost/sell price, shared vendor/category/margin settings, preview section, Save All with progress bar
+- **Vendor assignment on catalogue items:** Vendor dropdown on `AddItemPage`/`ItemEditPage`; vendor stored in `rate_list.vendor`
+- **Edge case:** Items with `vendor` but zero prices are excluded from ledger item lists (but vendor name still appears in vendor list)
 
 ## Cutmail Admin
 

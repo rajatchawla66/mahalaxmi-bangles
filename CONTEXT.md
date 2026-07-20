@@ -6,6 +6,8 @@
 > - `CONTEXT.md` = current essentials only.
 > - `migration_docs/context/*.md` = detailed feature and bug history.
 > - `migration_docs/*.md` = audits, SQL migrations, one-time reports.
+>
+> **"Update context"** means update THIS file AND the relevant file(s) under `migration_docs/context/*.md` (e.g., admin app changes update `03_admin_app.md`, DB changes update `05_database_schema.md`, bugs update `07_bugfix_history.md`).
 
 ## Project Identity
 
@@ -20,14 +22,14 @@
 | App | Purpose | Folder |
 |-----|---------|--------|
 | `mahalaxmi_customer` | Customer-facing catalogue, cart, orders | `mahalaxmi_customer/` |
-| `mahalaxmi_admin` | Admin dashboard, orders, catalogue, customers, settings | `mahalaxmi_admin/` |
+| `mahalaxmi_admin` | Admin dashboard, ledger, orders, catalogue, customers, settings | `mahalaxmi_admin/` |
 | `mahalaxmi_labour` | Cutmail/stock-check creation (beta) | `mahalaxmi_labour/` |
 | `mahalaxmi_shared` | Shared models, repositories, providers, services | `mahalaxmi_shared/` |
 
 ## Feature Status
 
 - **Customer app:** Production-ready. PIN login, catalogue, cart (persisted), orders, Chuda customisation, PDF share, web-compatible.
-- **Admin app:** Production-ready (Android + Web). Dashboard, orders (create/archive/soft-delete), catalogue management (add/edit/delete/tags/images), cost calc (trading + manufacturing), customers, settings, cutmail review, WhatsApp photo share.
+- **Admin app:** Production-ready (Android + Web). Dashboard (with order stats), ledger (trading cost tracking by category/vendor, bulk entry), orders (create/archive/soft-delete), catalogue management (add/edit/delete/tags/images/vendor), cost calc (trading + manufacturing), customers, settings (vendor master, categories, tags, materials), cutmail review, WhatsApp photo share.
 - **Audit report:** `migration_docs/audit_admin_app.md` — 24 findings (5 high, 12 medium, 7 low) with adjusted severity for private deployment (2-3 trusted users). Full admin app audit completed 2026-07-15.
 - **Labour app:** Beta. Cutmail/stock-check creation only. No session auth guard yet.
 - **Web apps:** Customer live at `https://app.mahalaxmibangles.com`. Admin web at `https://admin.mahalaxmibangles.com` (behind Cloudflare Access — owner email only). Supabase Auth/RLS hardening pending.
@@ -49,7 +51,7 @@
 | Table | Key Fields | Notes |
 |-------|-----------|-------|
 | `categories` | `size_chart jsonb`, `sort_order int`, `is_active bool` | |
-| `rate_list` | `available_sizes jsonb`, `selling_price numeric`, `cost_price numeric`, `tags jsonb` | |
+| `rate_list` | `available_sizes jsonb`, `selling_price numeric`, `cost_price numeric`, `tags jsonb` | `vendor` column added for vendor assignment |
 | `order_items` | `qty_2_12 int`, `customization jsonb` | Customization stores Chuda patti/color/box snapshot |
 | `orders` | `deleted_at timestamptz`, `deleted_by text`, `delete_reason text` | Soft-delete columns |
 | `customers` | `is_active bool`, `pin text`, `last_active_at timestamptz` | |
@@ -57,18 +59,21 @@
 | `cutmail_sizes` | FK to cutmails, size text, qty int | Per-size quantities |
 | `chuda_customization_options` | Group/name/price/default | Patti, Color, Box options |
 | `tag_master` | Name, is_active | Catalogue tags |
+| `vendor_master` | Name, is_active | Vendor list for ledger |
+| `vendor_prices` | item_name, vendor_name, cost/sell price, category | Non-catalogue vendor purchase records |
 
 ## Detailed References
 
 - Project overview & architecture → `migration_docs/context/01_project_overview.md`
 - Customer app features (login, catalogue, cart, orders, Chuda, web) → `migration_docs/context/02_customer_app.md`
-- Admin app features (dashboard, orders, catalogue, customers, settings, cutmail) → `migration_docs/context/03_admin_app.md`
+- Admin app features (dashboard, orders, catalogue, customers, settings, cutmail, ledger) → `migration_docs/context/03_admin_app.md`
 - Labour app (cutmail creation, dashboard) → `migration_docs/context/04_labour_app.md`
 - Database schema, migrations, RLS → `migration_docs/context/05_database_schema.md`
 - Full admin app audit (2026-07-15) → `migration_docs/audit_admin_app.md`
 - Feature history → `migration_docs/context/06_feature_history.md`
 - Bugfix history → `migration_docs/context/07_bugfix_history.md`
 - Play Store/Web/APK build → `migration_docs/context/08_release_playstore_web.md`
+- iOS migration → `migration_docs/context/09_ios_migration.md`
 
 ## Build
 
@@ -146,3 +151,43 @@ cd mahalaxmi_admin && flutter build ios --release --no-codesign --dart-define-fr
 ### Pending
 - No legacy cleanup remains. Only 1 `legacy_flet_app` mention left in repo — a historical note in `migration_docs/context/01_project_overview.md`.
 - Security fixes from audit (separate session).
+
+## Session — 2026-07-19 (3)
+
+### Done
+1. **Trading Ledger feature implemented** — Full stack: DB schema (applied via SQL editor), shared models/repos/providers/service, admin UI.
+2. **New DB tables/columns** — `vendor_master` table, `vendor` column on `rate_list`, `vendor_prices` table for non-catalogue records.
+3. **Shared layer (mahalaxmi_shared):**
+   - `VendorMaster` + `VendorPrice` freezed models
+   - `VendorRepository` + `VendorPriceRepository`
+   - `LedgerService` — merge logic, margin calc, category/vendor grouping
+   - Ledger providers — `allLedgerItemsProvider`, `ledgerItemsByCategoryProvider`, `ledgerItemsByVendorProvider`
+4. **Admin UI pages (mahalaxmi_admin):**
+   - `LedgerPage` — Category/Vendor tab toggle
+   - `ItemsByCategoryPage` / `ItemsByVendorPage` — CP/SP/Margin list, tap for detail
+   - `ItemLedgerDetailPage` — full detail with image, cost breakdown link for manufactured items
+   - `VendorPriceFormPage` — add/edit one-off purchase records
+5. **Router** — 4 new routes under `/cost-calc/ledger/...`
+6. **Cost Calc AppBar** — added Ledger icon button (first position)
+7. **AddItemPage / ItemEditPage** — vendor dropdown added to both forms (autocomplete from vendor_master)
+
+### Pending
+- Seed vendor_master with actual vendor names
+- "View Cost Calculation" navigation on detail page (links to existing cost calc page)
+- Security fixes from audit (separate session)
+
+## Session — 2026-07-19 (4)
+
+### Done
+1. **Vendor Master CRUD** — `ManageVendorsPage` now has Rename/Activate/Deactivate via popup menu. Added `updateVendor()` to `VendorRepository`. Fixed `bigint` → `String` id crash via custom `_parseId` JSON converter on `VendorMaster.id`.
+2. **Bulk Vendor Price Entry** — `BulkVendorPricePage` (same pattern as `BulkTradingCostPage`): row count dialog, dynamic rows with item name/cost/sell price, shared vendor/category/margin settings, preview section, Save All with progress bar. Route: `/cost-calc/ledger/bulk-add`.
+3. **Ledger moved to bottom nav** — Orders tab replaced by Ledger tab. Ledger is now a `StatefulShellBranch` at index 1. `/orders` moved to `_rootNavigatorKey` (full-screen push from dashboard).
+4. **Dashboard absorbs Orders** — Order stat cards now show all 4 statuses (Pending/Confirmed/Completed/Cancelled) and navigate to `/orders?status=...`. Recent Orders header is clickable ("View All"). OrdersPage accepts `initialStatus` query param to auto-select tab.
+5. **Category mandatory on vendor prices** — Both `VendorPriceFormPage` and `BulkVendorPricePage` changed category from free-text to required dropdown from `activeCategoriesProvider`.
+6. **Ledger stale cache fix** — `allRateItemsProvider` invalidated after item save/edit/delete in `add_item_page.dart` and `item_edit_page.dart` so vendor assignments appear in the Ledger Vendor tab immediately.
+7. **Bulk Vendor Price FAB** — Ledger page FAB shows bottom sheet with "Single Record" / "Bulk Entry" choice. Sub-pages (`ItemsByCategoryPage`, `ItemsByVendorPage`) have `+` FAB to add single records.
+
+### Pending
+- Seed vendor_master with actual vendor names
+- "View Cost Calculation" navigation on detail page
+- Security fixes from audit (separate session)

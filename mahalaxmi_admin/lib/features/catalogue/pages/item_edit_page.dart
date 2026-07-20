@@ -41,6 +41,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
   bool _autoCalc = true;
   String? _error;
   bool _initialized = false;
+  String? _editVendor;
   Uint8List? _newImageBytes;
   bool _imageChanged = false;
 
@@ -86,6 +87,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     _priceController.text = item.sellingPrice.toStringAsFixed(2);
     _costPriceController.text = item.costPrice.toStringAsFixed(2);
     _selectedTags = List.from(item.tags);
+    _editVendor = item.vendor;
     _isAvailable = item.isAvailable;
     _hasSizes = item.hasSizes;
     _hasColor = item.hasColor;
@@ -171,6 +173,7 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
         'selling_price': newPrice,
         'cost_price': costPrice,
         'margin_percent': marginPercent,
+        'vendor': _editVendor,
         'is_available': _isAvailable,
         'has_sizes': _hasSizes,
         'has_color': _hasColor,
@@ -190,6 +193,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       ref.refresh(adminCategoryItemsProvider(widget.categoryName));
       // ignore: unused_result
       ref.refresh(adminCategoriesWithStatsProvider);
+      // ignore: unused_result
+      ref.invalidate(allRateItemsProvider);
 
       if (!mounted) return;
       messenger.showSnackBar(
@@ -246,6 +251,8 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
       ref.refresh(adminCategoryItemsProvider(widget.categoryName));
       // ignore: unused_result
       ref.refresh(adminCategoriesWithStatsProvider);
+      // ignore: unused_result
+      ref.invalidate(allRateItemsProvider);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -657,6 +664,47 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
                                   setState(() => _selectedTags.add(tagName));
                                 }
                               },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Vendor
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Vendor', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        ref.watch(vendorNamesProvider).when(
+                          loading: () => const SizedBox(height: 20, child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))),
+                          error: (err, _) => Text('Error: $err', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                          data: (vendors) {
+                            final allVendors = ['' /* None */, ...vendors];
+                            return DropdownButtonFormField<String>(
+                              value: _editVendor,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                hintText: 'Select vendor...',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                              items: allVendors.map((v) => DropdownMenuItem(
+                                value: v.isEmpty ? null : v,
+                                child: Text(v.isEmpty ? 'None' : v),
+                              )).toList(),
+                              onChanged: (v) => setState(() => _editVendor = v),
                             );
                           },
                         ),

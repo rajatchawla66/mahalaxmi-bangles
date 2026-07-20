@@ -25,6 +25,7 @@ _$RateItemImpl _$$RateItemImplFromJson(Map<String, dynamic> json) =>
       availableSizes: (json['available_sizes'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      vendor: json['vendor'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -45,5 +46,6 @@ Map<String, dynamic> _$$RateItemImplToJson(_$RateItemImpl instance) =>
       'status': instance.status,
       'tags': instance.tags,
       'available_sizes': instance.availableSizes,
+      'vendor': instance.vendor,
       'created_at': instance.createdAt?.toIso8601String(),
     };

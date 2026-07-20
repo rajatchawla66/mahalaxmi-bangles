@@ -19,6 +19,7 @@ class RateItem with _$RateItem {
     @Default('new') String status,
     @Default(<String>[]) List<String> tags,
     @JsonKey(name: 'available_sizes') List<String>? availableSizes,
+    String? vendor,
     @JsonKey(name: 'created_at') DateTime? createdAt,
   }) = _RateItem;
 

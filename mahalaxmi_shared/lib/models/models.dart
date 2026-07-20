@@ -17,3 +17,5 @@ export 'chuda_customization_snapshot.dart';
 export 'cutmail.dart';
 export 'cutmail_size.dart';
 export 'cost_calculation.dart';
+export 'vendor_master.dart';
+export 'vendor_price.dart';

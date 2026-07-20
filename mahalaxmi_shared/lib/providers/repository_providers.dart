@@ -9,6 +9,16 @@ import '../repositories/chuda_customization_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../repositories/tag_repository.dart';
 import '../repositories/cutmail_repository.dart';
+import '../repositories/vendor_repository.dart';
+import '../repositories/vendor_price_repository.dart';
+
+final vendorRepositoryProvider = Provider<VendorRepository>((ref) {
+  return VendorRepository();
+});
+
+final vendorPriceRepositoryProvider = Provider<VendorPriceRepository>((ref) {
+  return VendorPriceRepository();
+});
 
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
   return CategoryRepository();

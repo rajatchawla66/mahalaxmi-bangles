@@ -32,6 +32,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
   String? _selectedCategory;
   List<String> _availableSizes = [];
   final List<String> _selectedTags = [];
+  String? _vendorName;
   bool _isAvailable = true;
   bool _hasSizes = false;
   bool _hasColor = false;
@@ -445,6 +446,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
         'cost_price': costPrice,
         'margin_percent': marginPercent,
         'tags': _selectedTags,
+        'vendor': _vendorName,
         'is_available': _isAvailable,
         'has_sizes': _hasSizes,
         'has_color': _hasColor,
@@ -460,6 +462,8 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
         // ignore: unused_result
         ref.refresh(adminCategoryItemsProvider(_selectedCategory!));
       }
+      // ignore: unused_result
+      ref.invalidate(allRateItemsProvider);
 
       if (_pricingMode == 'full') {
         try {
@@ -741,6 +745,47 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
                                 setState(() => _selectedTags.add(tagName));
                               }
                             },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Vendor
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Vendor', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      ref.watch(vendorNamesProvider).when(
+                        loading: () => const SizedBox(height: 20, child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))),
+                        error: (err, _) => Text('Error: $err', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                        data: (vendors) {
+                          final allVendors = ['' /* None */, ...vendors];
+                          return DropdownButtonFormField<String>(
+                            value: _vendorName,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Select vendor...',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            ),
+                            items: allVendors.map((v) => DropdownMenuItem(
+                              value: v.isEmpty ? null : v,
+                              child: Text(v.isEmpty ? 'None' : v),
+                            )).toList(),
+                            onChanged: (v) => setState(() => _vendorName = v),
                           );
                         },
                       ),
